@@ -5,6 +5,7 @@ from service import Service, color_to_symbol, Color
 from datetime import datetime
 import json
 import os
+import atexit
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key_here'  # Change this to a random secret key
@@ -100,20 +101,19 @@ def new_game():
         puzzle = next((p for p in service.get_puzzles() if p.date.isoformat() == date), None)
         if not puzzle:
             raise Exception("Invalid date")
+        
         user_data = load_user_data()
         user_puzzles = user_data[current_user.username]['puzzle_attempts']
+        
         if str(puzzle.id) in user_puzzles:
-            if user_puzzles[str(puzzle.id)]["completed"]:
-                return jsonify({'error': "You've already completed this puzzle."}), 400
-            elif user_puzzles[str(puzzle.id)]["failed"]:
-                return jsonify({'error': "You've already failed this puzzle and cannot reattempt it."}), 400
-        game = service.new_game(puzzle.id)
-        user_puzzles[str(puzzle.id)] = {"completed": False, "failed": False}
-        save_user_data(user_data)
-        return jsonify({
-            'game_id': game.id,
-            'unsolved_items': game.unsolved_items
-        }), 200
+            game_id = user_puzzles[str(puzzle.id)]
+            game = service.get_game(game_id)
+        else:
+            game = service.new_game(puzzle.id)
+            user_puzzles[str(puzzle.id)] = game.id
+            save_user_data(user_data)
+        
+        return game_state(game.id)
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
@@ -123,10 +123,12 @@ def game_state(game_id):
     try:
         game = service.get_game(game_id)
         return jsonify({
+            'game_id': game_id,
             'unsolved_items': game.unsolved_items,
             'solved_groups': [ serialize_group(group) for group in game.solved_groups ],
             'attempts_remaining': game.attempts_remaining,
-            'solved': game.solved
+            'solved': game.solved,
+            'guess_report': game.guess_report if game.solved or game.attempts_remaining == 0 else []
         }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 400
@@ -138,26 +140,26 @@ def guess(game_id):
     try:
         game = service.get_game(game_id)
         result = game.guess(items)
+        # Remove the service.save_games() call from here
         user_data = load_user_data()
-        user_puzzles = user_data[current_user.username]['puzzle_attempts']
         response_data = {
             'result': result.name,
             'unsolved_items': game.unsolved_items,
             'solved_groups': [ serialize_group(group) for group in game.solved_groups ],
             'attempts_remaining': game.attempts_remaining,
-            'solved': game.solved
+            'solved': game.solved,
+            'guess_report': game.guess_report
         }
         if game.solved:
             user_data[current_user.username]['completed_puzzles'] += 1
-            user_puzzles[str(game.puzzle.id)]["completed"] = True
             save_user_data(user_data)
             response_data['completed_puzzles'] = user_data[current_user.username]['completed_puzzles']
-        elif game.attempts_remaining == 0:
-            user_puzzles[str(game.puzzle.id)]["failed"] = True
-            save_user_data(user_data)
         return jsonify(response_data), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
+# Register the save_games function to be called when the app exits
+atexit.register(service.save_games)
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=5000)

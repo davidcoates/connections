@@ -3,18 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NYT Connections Clone</title>
+    <title>Secure Connections</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
             background-color: #121212;
             color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
         }
-        h1, h2 { text-align: center; color: #ffffff; }
+        .container {
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 5px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+        }
+        h1, h2 { text-align: center; color: #ffffff; margin-bottom: 20px; }
         #game { display: none; margin-top: 20px; }
         .items {
             display: grid;
@@ -27,8 +38,10 @@
             border: 1px solid #444;
             text-align: center;
             cursor: pointer;
-            background-color: #1e1e1e;
+            background-color: #2a2a2a;
             color: #ffffff;
+            border-radius: 5px;
+            transition: background-color 0.3s;
         }
         .item.selected { background-color: #3a3a3a; }
         .solved-group {
@@ -47,41 +60,73 @@
             color: #ffffff;
             border: none;
             cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
         }
         button:hover, select:hover { background-color: #4a4a4a; }
-        #attempts { text-align: center; font-weight: bold; color: #ffffff; }
+        #attempts { text-align: center; font-weight: bold; color: #ffffff; margin-top: 10px; }
         #game-controls { display: none; }
+        #guess-result {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 10px;
+            min-height: 1.5em;
+            color: #ffd700;
+        }
+        #user-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        #user-controls a {
+            color: #4a90e2;
+            text-decoration: none;
+        }
+        #user-controls a:hover {
+            text-decoration: underline;
+        }
+        #completed-puzzles {
+            font-weight: bold;
+            color: #4a90e2;
+        }
     </style>
 </head>
 <body>
-    <h1>NYT Connections Clone</h1>
-    <div id="user-controls">
+    <div class="container">
+        <h1>Secure Connections</h1>
+        <div id="user-controls">
+            {% if current_user.is_authenticated %}
+                <p>Welcome, {{ current_user.username }}!</p>
+                <p>Completed puzzles: <span id="completed-puzzles">{{ completed_puzzles }}</span></p>
+                <a href="{{ url_for('logout') }}">Logout</a>
+            {% else %}
+                <a href="{{ url_for('login') }}">Login</a>
+                <a href="{{ url_for('register') }}">Register</a>
+            {% endif %}
+        </div>
         {% if current_user.is_authenticated %}
-            <p>Welcome, {{ current_user.username }}! <a href="{{ url_for('logout') }}">Logout</a></p>
+            <div id="menu-controls">
+                <select id="puzzle_date">
+                    {% for date in puzzle_dates %}
+                        <option value="{{ date }}" {% if loop.first %}selected{% endif %}>{{ date }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div id="game-controls">
+                <button id="quit_game">Quit Game</button>
+            </div>
+            <div id="game">
+                <p id="guess-result"></p>
+                <div id="solved_groups"></div>
+                <div class="items" id="items"></div>
+                <button id="submit_guess">Submit Guess</button>
+                <div id="attempts"></div>
+            </div>
         {% else %}
-            <p><a href="{{ url_for('login') }}">Login</a> or <a href="{{ url_for('register') }}">Register</a></p>
+            <p>Please log in to play the game.</p>
         {% endif %}
-    </div>
-    {% if current_user.is_authenticated %}
-        <p>Completed puzzles: <span id="completed-puzzles">{{ completed_puzzles }}</span></p>
-    {% endif %}
-    <div id="menu-controls">
-        <select id="puzzle_date">
-            <option value="">Select a date</option>
-            {% for date in puzzle_dates %}
-                <option value="{{ date }}">{{ date }}</option>
-            {% endfor %}
-        </select>
-        <button id="start_game">Start New Game</button>
-    </div>
-    <div id="game-controls">
-        <button id="quit_game">Quit Game</button>
-    </div>
-    <div id="game">
-        <div id="solved_groups"></div>
-        <div class="items" id="items"></div>
-        <button id="submit_guess">Submit Guess</button>
-        <div id="attempts"></div>
     </div>
 
     <script>
@@ -104,48 +149,65 @@
                 $('#solved_groups').empty();
                 $('#items').empty();
                 $('#attempts').text('');
+                $('#guess-result').text('');
             }
 
-            function endGame(message) {
-                alert(message);
-                localStorage.removeItem('gameId');
-                gameId = null;
-                resetGameBoard();
-                showMenuControls();
-            }
+            function endGame(message, guessReport = []) {
+                let endGameDiv = $('<div id="end-game-message"></div>');
+                endGameDiv.append($('<p></p>').text(message));
+                
+                if (guessReport.length > 0) {
+                    let reportDiv = $('<div id="guess-report"></div>');
+                    reportDiv.append('<h3>Guess Report:</h3>');
+                    let reportContent = guessReport.join('<br>');
+                    reportDiv.append($('<p></p>').html(reportContent));
+                    endGameDiv.append(reportDiv);
+                }
 
-            function loadGame() {
-                if (gameId) {
-                    $.get(`/game_state/${gameId}`, function(data) {
-                        showGameControls();
-                        updateUnsolvedItems(data.unsolved_items);
-                        updateSolvedGroups(data.solved_groups);
-                        $('#attempts').text(`Attempts remaining: ${data.attempts_remaining}`);
-                        if (data.solved) {
-                            endGame("You've already solved this puzzle!");
-                        } else if (data.attempts_remaining <= 0) {
-                            endGame("Game Over! You've run out of attempts.");
-                        }
-                    }).fail(function() {
-                        localStorage.removeItem('gameId');
-                        gameId = null;
-                        resetGameBoard();
-                        showMenuControls();
-                    });
-                } else {
+                let shareButton = $('<button id="share_results">Share Results</button>');
+                shareButton.click(function() {
+                    copyResultsToClipboard(message, guessReport);
+                });
+                
+                endGameDiv.append(shareButton);
+                endGameDiv.append($('<button id="return_to_menu">Return to Menu</button>'));
+                
+                $('#game').hide();
+                $('#game-controls').hide();
+                $('#end-game-message').remove(); // Remove any existing end game message
+                $('body').append(endGameDiv);
+                
+                $('#return_to_menu').click(function() {
+                    localStorage.removeItem('gameId');
+                    gameId = null;
                     resetGameBoard();
                     showMenuControls();
-                }
+                    $('#end-game-message').remove();
+                });
             }
 
-            loadGame();
+            function copyResultsToClipboard(message, guessReport) {
+                let results = generateResults(message, guessReport);
+                navigator.clipboard.writeText(results).then(function() {
+                    alert('Results copied to clipboard!');
+                }, function(err) {
+                    console.error('Could not copy text: ', err);
+                });
+            }
 
-            $('#start_game').click(function() {
-                const selectedDate = $('#puzzle_date').val();
-                if (!selectedDate) {
-                    alert("Please select a date.");
-                    return;
-                }
+            function generateResults(message, guessReport) {
+                let puzzleDate = $('#puzzle_date').val();
+                let solvedGroups = $('.solved-group').length;
+                
+                let resultString = `Secure Connections ${puzzleDate}\n`;
+                resultString += `${solvedGroups}/4 groups\n\n`;
+                resultString += guessReport.join('\n');
+                resultString += `\n\n${message}`;
+                
+                return resultString;
+            }
+
+            function loadGame(selectedDate) {
                 $.ajax({
                     url: '/new_game',
                     method: 'POST',
@@ -157,13 +219,29 @@
                         resetGameBoard();
                         showGameControls();
                         updateUnsolvedItems(data.unsolved_items);
-                        $('#attempts').text(`Attempts remaining: 4`);
+                        updateSolvedGroups(data.solved_groups);
+                        $('#attempts').text(`Attempts remaining: ${data.attempts_remaining}`);
                         $('#submit_guess').prop('disabled', false);
+                        if (data.solved) {
+                            endGame("You've already solved this puzzle!", data.guess_report);
+                        } else if (data.attempts_remaining <= 0) {
+                            endGame("Game Over! You've run out of attempts.", data.guess_report);
+                        }
                     },
                     error: function(err) {
                         alert(err.responseJSON.error);
+                        showMenuControls();
                     }
                 });
+            }
+
+            // Load the latest puzzle on page load
+            loadGame($('#puzzle_date').val());
+
+            // Change puzzle when date is changed
+            $('#puzzle_date').change(function() {
+                const selectedDate = $(this).val();
+                loadGame(selectedDate);
             });
 
             $('#quit_game').click(function() {
@@ -174,14 +252,14 @@
 
             $('#submit_guess').click(function() {
                 if (!gameId) {
-                    alert("Please start a new game first.");
+                    $('#guess-result').text("Please start a new game first.");
                     return;
                 }
                 const selectedItems = $('.item.selected').map(function() {
                     return $(this).text();
                 }).get();
                 if (selectedItems.length !== 4) {
-                    alert("Please select exactly 4 items.");
+                    $('#guess-result').text("Please select exactly 4 items.");
                     return;
                 }
                 $.ajax({
@@ -190,19 +268,36 @@
                     contentType: 'application/json',
                     data: JSON.stringify({ items: selectedItems }),
                     success: function(data) {
-                        alert(`Result: ${data.result}`);
+                        let resultMessage;
+                        switch(data.result) {
+                            case 'CORRECT':
+                                resultMessage = "Correct! You've found a group.";
+                                break;
+                            case 'INCORRECT':
+                                resultMessage = "Incorrect. Try again.";
+                                break;
+                            case 'INCORRECT_ONE_AWAY':
+                                resultMessage = "Close! You're one away from a correct group.";
+                                break;
+                            case 'ALREADY_GUESSED':
+                                resultMessage = "You've already guessed this combination.";
+                                break;
+                            default:
+                                resultMessage = "Unknown result.";
+                        }
+                        $('#guess-result').text(resultMessage);
                         updateUnsolvedItems(data.unsolved_items);
                         updateSolvedGroups(data.solved_groups);
                         $('#attempts').text(`Attempts remaining: ${data.attempts_remaining}`);
                         if (data.solved) {
-                            endGame("Congratulations! You've solved the puzzle!");
+                            endGame("Congratulations! You've solved the puzzle!", data.guess_report);
                             $('#completed-puzzles').text(data.completed_puzzles);
                         } else if (data.attempts_remaining <= 0) {
-                            endGame("Game Over! You've run out of attempts.");
+                            endGame("Game Over! You've run out of attempts.", data.guess_report);
                         }
                     },
                     error: function(err) {
-                        alert(err.responseJSON.error);
+                        $('#guess-result').text(err.responseJSON.error);
                     }
                 });
             });
@@ -210,8 +305,7 @@
             function updateUnsolvedItems(items) {
                 $('#items').empty();
                 items.forEach(function(item) {
-                    const text = item;
-                    const $item = $('<div class="item"></div>').text(text);
+                    const $item = $('<div class="item"></div>').text(item);
                     $item.click(function() {
                         $(this).toggleClass('selected');
                     });

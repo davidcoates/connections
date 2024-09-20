@@ -5,6 +5,7 @@ from enum import Enum, auto
 import json
 import uuid
 import random
+from json import JSONEncoder, JSONDecoder
 
 
 class Color(Enum):
@@ -85,6 +86,39 @@ class Guess(Enum):
     INCORRECT_ONE_AWAY = auto()
     CORRECT = auto()
 
+class GameEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Game):
+            return {
+                '_id': obj._id,
+                '_puzzle': obj._puzzle.id,  # Store only the puzzle ID
+                '_solved_groups': [group.color.name for group in obj._solved_groups],
+                '_guess_report': obj._guess_report,
+                '_incorrect_guesses': list(obj._incorrect_guesses),
+                '_correct_guesses': list(obj._correct_guesses),
+                '_shuffled_items': obj._shuffled_items
+            }
+        elif isinstance(obj, frozenset):
+            return list(obj)
+        return super().default(obj)
+
+class GameDecoder(JSONDecoder):
+    def __init__(self, *args, **kwargs):
+        self.service = kwargs.pop('service', None)
+        super().__init__(object_hook=self.object_hook, *args, **kwargs)
+
+    def object_hook(self, data):
+        if all(key in data for key in ('_id', '_puzzle', '_solved_groups', '_guess_report', '_incorrect_guesses', '_correct_guesses', '_shuffled_items')):
+            game = Game(self.service.puzzles[data['_puzzle']])
+            game._id = data['_id']
+            game._solved_groups = [next(group for group in game._puzzle.groups if group.color.name == color) for color in data['_solved_groups']]
+            game._guess_report = data['_guess_report']
+            game._incorrect_guesses = set(frozenset(guess) for guess in data['_incorrect_guesses'])
+            game._correct_guesses = set(frozenset(guess) for guess in data['_correct_guesses'])
+            game._shuffled_items = data['_shuffled_items']
+            return game
+        return data
+
 class Game:
 
     MAX_INCORRECT_GUESSES = 4
@@ -161,15 +195,22 @@ class Game:
             self._incorrect_guesses.add(guess)
             return Guess.INCORRECT
 
+    def to_json(self):
+        return json.dumps(self, cls=GameEncoder)
+
+    @classmethod
+    def from_json(cls, json_str, service):
+        return json.loads(json_str, cls=GameDecoder, service=service)
+
 
 class Service:
 
     PUZZLES_FILENAME = "puzzles.json"
 
     def __init__(self):
-        self.games_by_id = {}
         with open(self.PUZZLES_FILENAME) as f:
             self.puzzles = [ Puzzle.from_JSON(id, puzzle) for id, puzzle in enumerate(json.load(f)) ]
+        self.load_games()
 
     def get_puzzles(self) -> list[Puzzle]:
         return self.puzzles
@@ -180,9 +221,23 @@ class Service:
         puzzle = self.puzzles[puzzle_id]
         game = Game(puzzle)
         self.games_by_id[game.id] = game
+        self.save_games()
         return game
 
     def get_game(self, game_id: str) -> Game:
         if game_id not in self.games_by_id:
             raise Exception("invalid game_id")
         return self.games_by_id[game_id]
+
+    def save_games(self):
+        games_data = {game_id: game.to_json() for game_id, game in self.games_by_id.items()}
+        with open('games.json', 'w') as f:
+            json.dump(games_data, f)
+
+    def load_games(self):
+        try:
+            with open('games.json', 'r') as f:
+                games_data = json.load(f)
+            self.games_by_id = {game_id: Game.from_json(game_json, self) for game_id, game_json in games_data.items()}
+        except FileNotFoundError:
+            self.games_by_id = {}
