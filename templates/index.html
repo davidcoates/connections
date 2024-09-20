@@ -91,6 +91,37 @@
             font-weight: bold;
             color: #4a90e2;
         }
+        #puzzle-navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        #puzzle-navigation button {
+            padding: 5px 10px;
+        }
+        #end-game-message {
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+        }
+        #guess-report {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #2a2a2a;
+            border-radius: 5px;
+        }
+        #guess-report h3 {
+            margin-top: 0;
+            color: #ffffff;
+        }
+        #guess-report p {
+            margin-bottom: 0;
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body>
@@ -109,8 +140,10 @@
         {% if current_user.is_authenticated %}
             <div id="menu-controls">
                 <select id="puzzle_date">
-                    {% for date in puzzle_dates %}
-                        <option value="{{ date }}" {% if loop.first %}selected{% endif %}>{{ date }}</option>
+                    {% for puzzle in puzzles %}
+                        <option value="{{ puzzle.date.isoformat() }}" data-id="{{ puzzle.id }}">
+                            Puzzle {{ puzzle.id }} - {{ puzzle.date.isoformat() }}
+                        </option>
                     {% endfor %}
                 </select>
             </div>
@@ -118,11 +151,16 @@
                 <button id="quit_game">Quit Game</button>
             </div>
             <div id="game">
+                <h2 id="puzzle-info"></h2>
                 <p id="guess-result"></p>
                 <div id="solved_groups"></div>
                 <div class="items" id="items"></div>
                 <button id="submit_guess">Submit Guess</button>
                 <div id="attempts"></div>
+                <div id="puzzle-navigation">
+                    <button id="prev-puzzle" style="display: none;">&lt; Previous Puzzle</button>
+                    <button id="next-puzzle" style="display: none;">Next Puzzle &gt;</button>
+                </div>
             </div>
         {% else %}
             <p>Please log in to play the game.</p>
@@ -132,6 +170,7 @@
     <script>
         $(document).ready(function() {
             let gameId = localStorage.getItem('gameId');
+            let currentPuzzleIndex = 0;
 
             function showGameControls() {
                 $('#menu-controls').hide();
@@ -153,7 +192,10 @@
             }
 
             function endGame(message, guessReport = []) {
+                let puzzleId = $('#puzzle_date option:selected').data('id');
+                let puzzleDate = $('#puzzle_date').val();
                 let endGameDiv = $('<div id="end-game-message"></div>');
+                endGameDiv.append($('<h2></h2>').text(`Puzzle ${puzzleId} - ${puzzleDate}`));
                 endGameDiv.append($('<p></p>').text(message));
                 
                 if (guessReport.length > 0) {
@@ -164,18 +206,13 @@
                     endGameDiv.append(reportDiv);
                 }
 
-                let shareButton = $('<button id="share_results">Share Results</button>');
-                shareButton.click(function() {
-                    copyResultsToClipboard(message, guessReport);
-                });
-                
-                endGameDiv.append(shareButton);
                 endGameDiv.append($('<button id="return_to_menu">Return to Menu</button>'));
+                endGameDiv.append($('<button id="share_results">Share Results</button>'));
                 
                 $('#game').hide();
                 $('#game-controls').hide();
                 $('#end-game-message').remove(); // Remove any existing end game message
-                $('body').append(endGameDiv);
+                $('.container').append(endGameDiv); // Append to the container instead of body
                 
                 $('#return_to_menu').click(function() {
                     localStorage.removeItem('gameId');
@@ -184,6 +221,13 @@
                     showMenuControls();
                     $('#end-game-message').remove();
                 });
+
+                $('#share_results').click(function() {
+                    copyResultsToClipboard(message, guessReport);
+                });
+
+                // Show puzzle navigation buttons
+                updatePuzzleNavigation();
             }
 
             function copyResultsToClipboard(message, guessReport) {
@@ -196,15 +240,23 @@
             }
 
             function generateResults(message, guessReport) {
+                let puzzleId = $('#puzzle_date option:selected').data('id');
                 let puzzleDate = $('#puzzle_date').val();
                 let solvedGroups = $('.solved-group').length;
                 
-                let resultString = `Secure Connections ${puzzleDate}\n`;
+                let resultString = `Secure Connections Puzzle ${puzzleId} - ${puzzleDate}\n`;
                 resultString += `${solvedGroups}/4 groups\n\n`;
                 resultString += guessReport.join('\n');
                 resultString += `\n\n${message}`;
                 
                 return resultString;
+            }
+
+            function updatePuzzleInfo() {
+                let selectedOption = $('#puzzle_date option:selected');
+                let puzzleId = selectedOption.data('id');
+                let puzzleDate = selectedOption.val();
+                $('#puzzle-info').text(`Puzzle ${puzzleId} - ${puzzleDate}`);
             }
 
             function loadGame(selectedDate) {
@@ -218,6 +270,7 @@
                         localStorage.setItem('gameId', gameId);
                         resetGameBoard();
                         showGameControls();
+                        updatePuzzleInfo();
                         updateUnsolvedItems(data.unsolved_items);
                         updateSolvedGroups(data.solved_groups);
                         $('#attempts').text(`Attempts remaining: ${data.attempts_remaining}`);
@@ -227,6 +280,7 @@
                         } else if (data.attempts_remaining <= 0) {
                             endGame("Game Over! You've run out of attempts.", data.guess_report);
                         }
+                        updatePuzzleNavigation();
                     },
                     error: function(err) {
                         alert(err.responseJSON.error);
@@ -242,6 +296,24 @@
             $('#puzzle_date').change(function() {
                 const selectedDate = $(this).val();
                 loadGame(selectedDate);
+            });
+
+            // Navigate to previous puzzle
+            $('#prev-puzzle').click(function() {
+                if (currentPuzzleIndex > 0) {
+                    currentPuzzleIndex--;
+                    $('#puzzle_date option').eq(currentPuzzleIndex).prop('selected', true);
+                    loadGame($('#puzzle_date').val());
+                }
+            });
+
+            // Navigate to next puzzle
+            $('#next-puzzle').click(function() {
+                if (currentPuzzleIndex < $('#puzzle_date option').length - 1) {
+                    currentPuzzleIndex++;
+                    $('#puzzle_date option').eq(currentPuzzleIndex).prop('selected', true);
+                    loadGame($('#puzzle_date').val());
+                }
             });
 
             $('#quit_game').click(function() {
@@ -323,6 +395,12 @@
                     });
                     $('#solved_groups').append($group);
                 });
+            }
+
+            function updatePuzzleNavigation() {
+                currentPuzzleIndex = $('#puzzle_date option:selected').index();
+                $('#prev-puzzle').toggle(currentPuzzleIndex > 0);
+                $('#next-puzzle').toggle(currentPuzzleIndex < $('#puzzle_date option').length - 1);
             }
         });
     </script>

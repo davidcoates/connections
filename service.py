@@ -109,7 +109,10 @@ class GameDecoder(JSONDecoder):
 
     def object_hook(self, data):
         if all(key in data for key in ('_id', '_puzzle', '_solved_groups', '_guess_report', '_incorrect_guesses', '_correct_guesses', '_shuffled_items')):
-            game = Game(self.service.puzzles[data['_puzzle']])
+            puzzle = next((p for p in self.service.get_puzzles() if p.id == data['_puzzle']), None)
+            if puzzle is None:
+                raise ValueError(f"No puzzle found with id {data['_puzzle']}")
+            game = Game(puzzle)
             game._id = data['_id']
             game._solved_groups = [next(group for group in game._puzzle.groups if group.color.name == color) for color in data['_solved_groups']]
             game._guess_report = data['_guess_report']
@@ -208,9 +211,19 @@ class Service:
     PUZZLES_FILENAME = "puzzles.json"
 
     def __init__(self):
-        with open(self.PUZZLES_FILENAME) as f:
-            self.puzzles = [ Puzzle.from_JSON(id, puzzle) for id, puzzle in enumerate(json.load(f)) ]
-        self.load_games()
+        self.games_file = "games.json"
+        self.puzzles_file = "puzzles.json"
+        self.puzzles = self.load_puzzles()
+        self.games_by_id = self.load_games()
+
+    def load_puzzles(self):
+        try:
+            with open(self.puzzles_file, 'r') as f:
+                puzzle_data = json.load(f)
+            return [Puzzle.from_JSON(id, data) for id, data in enumerate(puzzle_data)]
+        except FileNotFoundError:
+            print(f"Warning: {self.puzzles_file} not found. No puzzles loaded.")
+            return []
 
     def get_puzzles(self) -> list[Puzzle]:
         return self.puzzles
@@ -236,8 +249,8 @@ class Service:
 
     def load_games(self):
         try:
-            with open('games.json', 'r') as f:
+            with open(self.games_file, 'r') as f:
                 games_data = json.load(f)
-            self.games_by_id = {game_id: Game.from_json(game_json, self) for game_id, game_json in games_data.items()}
+            return {game_id: Game.from_json(game_json, self) for game_id, game_json in games_data.items()}
         except FileNotFoundError:
-            self.games_by_id = {}
+            return {}

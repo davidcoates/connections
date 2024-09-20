@@ -45,10 +45,9 @@ def save_user_data(data):
 @app.route('/')
 def index():
     puzzles = service.get_puzzles()
-    puzzle_dates = [puzzle.date.isoformat() for puzzle in puzzles]
     user_data = load_user_data()
     completed_puzzles = user_data.get(current_user.username, {}).get("completed_puzzles", 0) if current_user.is_authenticated else 0
-    return render_template('index.html', puzzle_dates=puzzle_dates, completed_puzzles=completed_puzzles)
+    return render_template('index.html', puzzles=puzzles, completed_puzzles=completed_puzzles)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -98,9 +97,10 @@ def serialize_group(group):
 def new_game():
     date = request.json.get('date')
     try:
-        puzzle = next((p for p in service.get_puzzles() if p.date.isoformat() == date), None)
+        puzzles = service.get_puzzles()
+        puzzle = next((p for p in puzzles if p.date.isoformat() == date), None)
         if not puzzle:
-            raise Exception("Invalid date")
+            return jsonify({'error': f"Invalid date: {date}. Available dates: {[p.date.isoformat() for p in puzzles]}"}), 400
         
         user_data = load_user_data()
         user_puzzles = user_data[current_user.username]['puzzle_attempts']
@@ -115,6 +115,7 @@ def new_game():
         
         return game_state(game.id)
     except Exception as e:
+        app.logger.error(f"Error in new_game: {str(e)}")
         return jsonify({'error': str(e)}), 400
 
 @app.route('/game_state/<game_id>', methods=['GET'])
