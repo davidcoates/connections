@@ -90,22 +90,40 @@ class Game:
     MAX_INCORRECT_GUESSES = 4
 
     def __init__(self, puzzle: Puzzle):
-        self.id = str(uuid.uuid4())
-        self.puzzle = puzzle
-        self.incorrect_guesses = set()
-        self.correct_guesses = set()
-        self.solved_groups = []
-        self.guess_report = []
-        self.shuffled_items = [item for group in self.puzzle.groups for item in group.items]
-        random.shuffle(self.shuffled_items)
+        self._id = str(uuid.uuid4())
+        self._puzzle = puzzle
+        self._solved_groups = []
+        self._guess_report = []
+        self._incorrect_guesses = set()
+        self._correct_guesses = set()
+        self._shuffled_items = [item for group in self._puzzle.groups for item in group.items]
+        random.shuffle(self._shuffled_items)
+
+    @property
+    def id(self) -> str:
+        return self._id
+
+    @property
+    def puzzle(self) -> Puzzle:
+        return self._puzzle
+
+    @property
+    def solved_groups(self) -> list[Group]:
+        """ List of groups solved, in the order they were solved """
+        return self._solved_groups
 
     @property
     def unsolved_items(self) -> list[Item]:
-        return [ item for item in self.shuffled_items if self.puzzle.item_to_group(item) not in self.solved_groups ]
+        """ List of unsolved items, in the order they should be displayed """
+        return [ item for item in self._shuffled_items if self._puzzle.item_to_group(item) not in self._solved_groups ]
+
+    @property
+    def guess_report(self) -> list[str]:
+        return self._guess_report
 
     @property
     def attempts_remaining(self) -> int:
-        return self.MAX_INCORRECT_GUESSES - len(self.incorrect_guesses)
+        return self.MAX_INCORRECT_GUESSES - len(self._incorrect_guesses)
 
     @property
     def solved(self) -> bool:
@@ -119,28 +137,28 @@ class Game:
         if len(items) != ITEMS_PER_GROUP:
             raise Exception("invalid items")
         guess = frozenset(items)
-        if guess in self.incorrect_guesses or guess in self.correct_guesses:
+        if guess in self._incorrect_guesses or guess in self._correct_guesses:
             return Guess.ALREADY_GUESSED
         for item in items:
-            group = self.puzzle.item_to_group(item)
-            if group is None or group in self.solved_groups:
+            group = self._puzzle.item_to_group(item)
+            if group is None or group in self._solved_groups:
                 raise Exception("invalid items")
-        self.guess_report.append([color_to_symbol(self.puzzle.item_to_group(item).color) for item in items])
+        self.guess_report.append(''.join([color_to_symbol(self._puzzle.item_to_group(item).color) for item in items]))
         counts_by_group = defaultdict(int)
         for item in items:
-            group = self.puzzle.item_to_group(item)
+            group = self._puzzle.item_to_group(item)
             counts_by_group[group] += 1
         counts = sorted(list(counts_by_group.values()))
         if counts == [4]:
-            self.correct_guesses.add(guess)
+            self._correct_guesses.add(guess)
             group = next(iter(counts_by_group.keys()))
-            self.solved_groups.append(group)
+            self._solved_groups.append(group)
             return Guess.CORRECT
         elif counts == [1,3]:
-            self.incorrect_guesses.add(guess)
+            self._incorrect_guesses.add(guess)
             return Guess.INCORRECT_ONE_AWAY
         else:
-            self.incorrect_guesses.add(guess)
+            self._incorrect_guesses.add(guess)
             return Guess.INCORRECT
 
 
