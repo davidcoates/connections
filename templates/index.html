@@ -118,8 +118,8 @@
                 if (gameId) {
                     $.get(`/game_state/${gameId}`, function(data) {
                         showGameControls();
-                        updateItems(data.items);
-                        updateSolvedGroups(data.solved_colors, data.items);
+                        updateUnsolvedItems(data.unsolved_items);
+                        updateSolvedGroups(data.solved_groups);
                         $('#attempts').text(`Attempts remaining: ${data.attempts_remaining}`);
                         if (data.solved) {
                             endGame("You've already solved this puzzle!");
@@ -156,7 +156,7 @@
                         localStorage.setItem('gameId', gameId);
                         resetGameBoard();
                         showGameControls();
-                        updateItems(data.items);
+                        updateUnsolvedItems(data.unsolved_items);
                         $('#attempts').text(`Attempts remaining: 4`);
                         $('#submit_guess').prop('disabled', false);
                     },
@@ -191,8 +191,8 @@
                     data: JSON.stringify({ items: selectedItems }),
                     success: function(data) {
                         alert(`Result: ${data.result}`);
-                        updateItems(data.items);
-                        updateSolvedGroups(data.solved_colors, data.items);
+                        updateUnsolvedItems(data.unsolved_items);
+                        updateSolvedGroups(data.solved_groups);
                         $('#attempts').text(`Attempts remaining: ${data.attempts_remaining}`);
                         if (data.solved) {
                             endGame("Congratulations! You've solved the puzzle!");
@@ -207,33 +207,25 @@
                 });
             });
 
-            function updateItems(items) {
+            function updateUnsolvedItems(items) {
                 $('#items').empty();
                 items.forEach(function(item) {
-                    const [text, color] = item;
+                    const text = item;
                     const $item = $('<div class="item"></div>').text(text);
-                    if (color) {
-                        $item.css({
-                            'background-color': color.toLowerCase(),
-                            'color': '#000000'
-                        });
-                    } else {
-                        $item.click(function() {
-                            $(this).toggleClass('selected');
-                        });
-                    }
+                    $item.click(function() {
+                        $(this).toggleClass('selected');
+                    });
                     $('#items').append($item);
                 });
             }
 
-            function updateSolvedGroups(solvedColors, items) {
+            function updateSolvedGroups(solvedGroups) {
                 $('#solved_groups').empty();
-                solvedColors.forEach(function(color) {
-                    const groupItems = items.filter(item => item[1] === color);
-                    const $group = $('<div class="solved-group"></div>').css('background-color', color.toLowerCase());
-                    $group.append(`<h3>${color} Group</h3>`);
-                    groupItems.forEach(item => {
-                        $group.append(`<div>${item[0]}</div>`);
+                solvedGroups.forEach(function(group) {
+                    const $group = $('<div class="solved-group"></div>').css('background-color', group.color.toLowerCase());
+                    $group.append(`<h3>${group.category}</h3>`);
+                    group.items.forEach(item => {
+                        $group.append(`<div>${item}</div>`);
                     });
                     $('#solved_groups').append($group);
                 });

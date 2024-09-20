@@ -32,36 +32,50 @@ type Category = str
 
 ITEMS_PER_GROUP = 4
 
-@dataclass
+@dataclass(frozen=True)
 class Group:
+    color: Color
     category: Category
     items: Items
 
     def __post_init__(self):
         assert len(self.items) == ITEMS_PER_GROUP
 
+    @staticmethod
+    def from_JSON(data):
+        color = Color[data['color']]
+        category = data['category']
+        items = data['items']
+        return Group(color, category, items)
 
-type Solution = dict[Color, Group]
+    def __hash__(self):
+        return hash(self.color)
 
-@dataclass
+    def __eq__(self, other):
+        return self.color == other.color
+
+
+@dataclass(frozen=True)
 class Puzzle:
     id: int
     date: datetime.date
     author: str
-    solution: Solution
+    groups: list[Group]
 
+    def __post_init__(self):
+        assert { group.color for group in self.groups } == set(Color)
 
     @staticmethod
     def from_JSON(id, data):
         date = datetime.date.fromisoformat(data['date'])
         author = data['author']
-        solution = { Color[color] : Group(**group) for color, group in data['solution'].items() }
-        return Puzzle(id, date, author, solution)
+        groups = [ Group.from_JSON(group) for group in data['groups'] ]
+        return Puzzle(id, date, author, groups)
 
-    def item_to_color(self, item: Item) -> Color | None:
-        for color, group in self.solution.items():
+    def item_to_group(self, item: Item) -> Group | None:
+        for group in self.groups:
             if item in group.items:
-                return color
+                return group
         return None
 
 
@@ -80,24 +94,13 @@ class Game:
         self.puzzle = puzzle
         self.incorrect_guesses = set()
         self.correct_guesses = set()
-        self.solved_colors = []
-        self.shuffled_items = [item for color in Color for item in self.puzzle.solution[color].items]
+        self.solved_groups = []
+        self.shuffled_items = [item for group in self.puzzle.groups for item in group.items]
         random.shuffle(self.shuffled_items)
 
     @property
-    def items(self) -> list[Item, Color | None]:
-        """The state of the items grid to be displayed to the user"""
-        items = []
-        for color in self.solved_colors:
-            for item in self.puzzle.solution[color].items:
-                items.append((item, color))
-        for item in self.shuffled_items:
-            color = self.puzzle.item_to_color(item)
-            assert color is not None
-            if color in self.solved_colors:
-                continue
-            items.append((item, None))
-        return items
+    def unsolved_items(self) -> list[Item]:
+        return [ item for item in self.shuffled_items if self.puzzle.item_to_group(item) not in self.solved_groups ]
 
     @property
     def attempts_remaining(self) -> int:
@@ -105,7 +108,7 @@ class Game:
 
     @property
     def solved(self) -> bool:
-        return len(self.solved_colors) == len(Color)
+        return len(self.solved_groups) == len(Color)
 
     def guess(self, items: Items) -> Guess:
         if self.solved:
@@ -118,19 +121,18 @@ class Game:
         if guess in self.incorrect_guesses or guess in self.correct_guesses:
             return Guess.ALREADY_GUESSED
         for item in items:
-            color = self.puzzle.item_to_color(item)
-            if color is None or color in self.solved_colors:
+            group = self.puzzle.item_to_group(item)
+            if group is None or group in self.solved_groups:
                 raise Exception("invalid items")
-
-        counts_by_color = defaultdict(int)
+        counts_by_group = defaultdict(int)
         for item in items:
-            color = self.puzzle.item_to_color(item)
-            counts_by_color[color] += 1
-        counts = sorted(list(counts_by_color.values()))
+            group = self.puzzle.item_to_group(item)
+            counts_by_group[group] += 1
+        counts = sorted(list(counts_by_group.values()))
         if counts == [4]:
             self.correct_guesses.add(guess)
-            color = next(iter(counts_by_color.keys()))
-            self.solved_colors.append(color)
+            group = next(iter(counts_by_group.keys()))
+            self.solved_groups.append(group)
             return Guess.CORRECT
         elif counts == [1,3]:
             self.incorrect_guesses.add(guess)
@@ -151,7 +153,7 @@ class Service:
 
     def get_puzzles(self) -> list[Puzzle]:
         return self.puzzles
-    
+
     def new_game(self, puzzle_id: int) -> Game:
         if puzzle_id < 0 or puzzle_id >= len(self.puzzles):
             raise Exception("invalid puzzle_id")

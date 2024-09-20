@@ -27,10 +27,6 @@ def load_user(username):
         return User(username)
     return None
 
-def serialize_item(item):
-    text, color = item
-    return [text, color.name if color else None]
-
 def load_user_data():
     if os.path.exists(USER_DATA_FILE):
         with open(USER_DATA_FILE, 'r') as f:
@@ -93,6 +89,9 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
+def serialize_group(group):
+    return { 'color': group.color.name, 'category': group.category, 'items': group.items }
+
 @app.route('/new_game', methods=['POST'])
 @login_required
 def new_game():
@@ -101,7 +100,6 @@ def new_game():
         puzzle = next((p for p in service.get_puzzles() if p.date.isoformat() == date), None)
         if not puzzle:
             raise Exception("Invalid date")
-        
         user_data = load_user_data()
         user_puzzles = user_data[current_user.username]['puzzle_attempts']
         if str(puzzle.id) in user_puzzles:
@@ -109,11 +107,13 @@ def new_game():
                 return jsonify({'error': "You've already completed this puzzle."}), 400
             elif user_puzzles[str(puzzle.id)]["failed"]:
                 return jsonify({'error': "You've already failed this puzzle and cannot reattempt it."}), 400
-        
         game = service.new_game(puzzle.id)
         user_puzzles[str(puzzle.id)] = {"completed": False, "failed": False}
         save_user_data(user_data)
-        return jsonify({'game_id': game.id, 'items': [serialize_item(item) for item in game.items]}), 200
+        return jsonify({
+            'game_id': game.id,
+            'unsolved_items': game.unsolved_items
+        }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
@@ -123,8 +123,8 @@ def game_state(game_id):
     try:
         game = service.get_game(game_id)
         return jsonify({
-            'items': [serialize_item(item) for item in game.items],
-            'solved_colors': [color.name for color in game.solved_colors],
+            'unsolved_items': game.unsolved_items,
+            'solved_groups': [ serialize_group(group) for group in game.solved_groups ],
             'attempts_remaining': game.attempts_remaining,
             'solved': game.solved
         }), 200
@@ -140,15 +140,13 @@ def guess(game_id):
         result = game.guess(items)
         user_data = load_user_data()
         user_puzzles = user_data[current_user.username]['puzzle_attempts']
-        
         response_data = {
             'result': result.name,
-            'items': [serialize_item(item) for item in game.items],
-            'solved_colors': [color.name for color in game.solved_colors],
+            'unsolved_items': game.unsolved_items,
+            'solved_groups': [ serialize_group(group) for group in game.solved_groups ],
             'attempts_remaining': game.attempts_remaining,
             'solved': game.solved
         }
-        
         if game.solved:
             user_data[current_user.username]['completed_puzzles'] += 1
             user_puzzles[str(game.puzzle.id)]["completed"] = True
@@ -157,7 +155,6 @@ def guess(game_id):
         elif game.attempts_remaining == 0:
             user_puzzles[str(game.puzzle.id)]["failed"] = True
             save_user_data(user_data)
-        
         return jsonify(response_data), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 400
