@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NYT Connections Clone</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+        h1, h2 { text-align: center; color: #ffffff; }
+        #game { display: none; margin-top: 20px; }
+        .items {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .item {
+            padding: 10px;
+            border: 1px solid #444;
+            text-align: center;
+            cursor: pointer;
+            background-color: #1e1e1e;
+            color: #ffffff;
+        }
+        .item.selected { background-color: #3a3a3a; }
+        .solved-group {
+            margin-bottom: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            color: #000000;
+        }
+        .solved-group h3 { margin-top: 0; }
+        button, select {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            font-size: 1em;
+            background-color: #3a3a3a;
+            color: #ffffff;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover, select:hover { background-color: #4a4a4a; }
+        #attempts { text-align: center; font-weight: bold; color: #ffffff; }
+        #game-controls { display: none; }
+    </style>
+</head>
+<body>
+    <h1>NYT Connections Clone</h1>
+    <div id="menu-controls">
+        <select id="puzzle_date">
+            <option value="">Select a date</option>
+            {% for date in puzzle_dates %}
+                <option value="{{ date }}">{{ date }}</option>
+            {% endfor %}
+        </select>
+        <button id="start_game">Start New Game</button>
+    </div>
+    <div id="game-controls">
+        <button id="quit_game">Quit Game</button>
+    </div>
+    <div id="game">
+        <div id="solved_groups"></div>
+        <div class="items" id="items"></div>
+        <button id="submit_guess">Submit Guess</button>
+        <div id="attempts"></div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let gameId = localStorage.getItem('gameId');
+
+            function showGameControls() {
+                $('#menu-controls').hide();
+                $('#game-controls').show();
+                $('#game').show();
+            }
+
+            function showMenuControls() {
+                $('#menu-controls').show();
+                $('#game-controls').hide();
+                $('#game').hide();
+            }
+
+            function endGame(message) {
+                alert(message);
+                localStorage.removeItem('gameId');
+                gameId = null;
+                showMenuControls();
+            }
+
+            function loadGame() {
+                if (gameId) {
+                    $.get(`/game_state/${gameId}`, function(data) {
+                        showGameControls();
+                        updateItems(data.items);
+                        updateSolvedGroups(data.solved_colors, data.items);
+                        $('#attempts').text(`Attempts remaining: ${data.attempts_remaining}`);
+                        if (data.solved) {
+                            endGame("You've already solved this puzzle!");
+                        } else if (data.attempts_remaining <= 0) {
+                            endGame("Game Over! You've run out of attempts.");
+                        }
+                    }).fail(function() {
+                        localStorage.removeItem('gameId');
+                        gameId = null;
+                        showMenuControls();
+                    });
+                } else {
+                    showMenuControls();
+                }
+            }
+
+            loadGame();
+
+            $('#start_game').click(function() {
+                const selectedDate = $('#puzzle_date').val();
+                if (!selectedDate) {
+                    alert("Please select a date.");
+                    return;
+                }
+                $.ajax({
+                    url: '/new_game',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ date: selectedDate }),
+                    success: function(data) {
+                        gameId = data.game_id;
+                        localStorage.setItem('gameId', gameId);
+                        showGameControls();
+                        updateItems(data.items);
+                        $('#attempts').text(`Attempts remaining: 4`);
+                        $('#submit_guess').prop('disabled', false);
+                    },
+                    error: function(err) {
+                        alert(err.responseJSON.error);
+                    }
+                });
+            });
+
+            $('#quit_game').click(function() {
+                if (confirm("Are you sure you want to quit the current game?")) {
+                    endGame("Game quit.");
+                }
+            });
+
+            $('#submit_guess').click(function() {
+                if (!gameId) {
+                    alert("Please start a new game first.");
+                    return;
+                }
+                const selectedItems = $('.item.selected').map(function() {
+                    return $(this).text();
+                }).get();
+                if (selectedItems.length !== 4) {
+                    alert("Please select exactly 4 items.");
+                    return;
+                }
+                $.ajax({
+                    url: `/guess/${gameId}`,
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ items: selectedItems }),
+                    success: function(data) {
+                        alert(`Result: ${data.result}`);
+                        updateItems(data.items);
+                        updateSolvedGroups(data.solved_colors, data.items);
+                        $('#attempts').text(`Attempts remaining: ${data.attempts_remaining}`);
+                        if (data.solved) {
+                            endGame("Congratulations! You've solved the puzzle!");
+                        } else if (data.attempts_remaining <= 0) {
+                            endGame("Game Over! You've run out of attempts.");
+                        }
+                    },
+                    error: function(err) {
+                        alert(err.responseJSON.error);
+                    }
+                });
+            });
+
+            function updateItems(items) {
+                $('#items').empty();
+                items.forEach(function(item) {
+                    const [text, color] = item;
+                    const $item = $('<div class="item"></div>').text(text);
+                    if (color) {
+                        $item.css({
+                            'background-color': color.toLowerCase(),
+                            'color': '#000000'
+                        });
+                    } else {
+                        $item.click(function() {
+                            $(this).toggleClass('selected');
+                        });
+                    }
+                    $('#items').append($item);
+                });
+            }
+
+            function updateSolvedGroups(solvedColors, items) {
+                $('#solved_groups').empty();
+                solvedColors.forEach(function(color) {
+                    const groupItems = items.filter(item => item[1] === color);
+                    const $group = $('<div class="solved-group"></div>').css('background-color', color.toLowerCase());
+                    $group.append(`<h3>${color} Group</h3>`);
+                    groupItems.forEach(item => {
+                        $group.append(`<div>${item[0]}</div>`);
+                    });
+                    $('#solved_groups').append($group);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
