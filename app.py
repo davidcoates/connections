@@ -92,39 +92,22 @@ def logout():
 def serialize_group(group):
     return { 'color': group.color.name, 'category': group.category, 'items': group.items }
 
-@app.route('/new_game', methods=['POST'])
+@app.route('/game/<puzzle_id>', methods=['POST'])
 @login_required
-def new_game():
-    date = request.json.get('date')
+def new_game(puzzle_id):
     try:
-        puzzles = service.get_puzzles()
-        puzzle = next((p for p in puzzles if p.date.isoformat() == date), None)
-        if not puzzle:
-            return jsonify({'error': f"Invalid date: {date}. Available dates: {[p.date.isoformat() for p in puzzles]}"}), 400
-        
+        puzzle = service.get_puzzle(puzzle_id)
         user_data = load_user_data()
         user_puzzles = user_data[current_user.username]['puzzle_attempts']
-        
         if str(puzzle.id) in user_puzzles:
-            game_id = user_puzzles[str(puzzle.id)]
+            game_id = user_puzzles[puzzle.id]
             game = service.get_game(game_id)
         else:
             game = service.new_game(puzzle.id)
-            user_puzzles[str(puzzle.id)] = game.id
+            user_puzzles[puzzle.id] = game.id
             save_user_data(user_data)
-        
-        return game_state(game.id)
-    except Exception as e:
-        app.logger.error(f"Error in new_game: {str(e)}")
-        return jsonify({'error': str(e)}), 400
-
-@app.route('/game_state/<game_id>', methods=['GET'])
-@login_required
-def game_state(game_id):
-    try:
-        game = service.get_game(game_id)
         return jsonify({
-            'game_id': game_id,
+            'game_id': game.id,
             'unsolved_items': game.unsolved_items,
             'solved_groups': [ serialize_group(group) for group in game.solved_groups ],
             'attempts_remaining': game.attempts_remaining,

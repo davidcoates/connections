@@ -58,7 +58,7 @@ class Group:
 
 @dataclass(frozen=True)
 class Puzzle:
-    id: int
+    id: str
     date: datetime.date
     author: str
     groups: list[Group]
@@ -87,6 +87,7 @@ class Guess(Enum):
     CORRECT = auto()
 
 class GameEncoder(JSONEncoder):
+
     def default(self, obj):
         if isinstance(obj, Game):
             return {
@@ -102,25 +103,26 @@ class GameEncoder(JSONEncoder):
             return list(obj)
         return super().default(obj)
 
+
 class GameDecoder(JSONDecoder):
+
     def __init__(self, *args, **kwargs):
-        self.service = kwargs.pop('service', None)
+        self.service = kwargs.pop('service')
         super().__init__(object_hook=self.object_hook, *args, **kwargs)
 
     def object_hook(self, data):
         if all(key in data for key in ('_id', '_puzzle', '_solved_groups', '_guess_report', '_incorrect_guesses', '_correct_guesses', '_shuffled_items')):
-            puzzle = next((p for p in self.service.get_puzzles() if p.id == data['_puzzle']), None)
-            if puzzle is None:
-                raise ValueError(f"No puzzle found with id {data['_puzzle']}")
+            puzzle = self.service.get_puzzle(data['_puzzle'])
             game = Game(puzzle)
             game._id = data['_id']
-            game._solved_groups = [next(group for group in game._puzzle.groups if group.color.name == color) for color in data['_solved_groups']]
+            game._solved_groups = [group for group in game._puzzle.groups if group.color.name in data['_solved_groups']]
             game._guess_report = data['_guess_report']
             game._incorrect_guesses = set(frozenset(guess) for guess in data['_incorrect_guesses'])
             game._correct_guesses = set(frozenset(guess) for guess in data['_correct_guesses'])
             game._shuffled_items = data['_shuffled_items']
             return game
         return data
+
 
 class Game:
 
@@ -209,48 +211,51 @@ class Game:
 class Service:
 
     PUZZLES_FILENAME = "puzzles.json"
+    GAMES_FILENAME = "games.json"
 
     def __init__(self):
-        self.games_file = "games.json"
-        self.puzzles_file = "puzzles.json"
-        self.puzzles = self.load_puzzles()
-        self.games_by_id = self.load_games()
+        self._puzzles_by_id = self._load_puzzles()
+        self._games_by_id = self._load_games()
 
-    def load_puzzles(self):
-        try:
-            with open(self.puzzles_file, 'r') as f:
-                puzzle_data = json.load(f)
-            return [Puzzle.from_JSON(id, data) for id, data in enumerate(puzzle_data)]
-        except FileNotFoundError:
-            print(f"Warning: {self.puzzles_file} not found. No puzzles loaded.")
-            return []
+    def get_puzzle(self, puzzle_id: str) -> Puzzle:
+        if puzzle_id not in self._puzzles_by_id:
+            raise Exception("invalid puzzle_id")
+        return self._puzzles_by_id[puzzle_id]
 
     def get_puzzles(self) -> list[Puzzle]:
-        return self.puzzles
+        return list(self._puzzles_by_id.values())
 
-    def new_game(self, puzzle_id: int) -> Game:
-        if puzzle_id < 0 or puzzle_id >= len(self.puzzles):
+    def new_game(self, puzzle_id: str) -> Game:
+        if puzzle_id not in self._puzzles_by_id:
             raise Exception("invalid puzzle_id")
-        puzzle = self.puzzles[puzzle_id]
+        puzzle = self._puzzles_by_id[puzzle_id]
         game = Game(puzzle)
-        self.games_by_id[game.id] = game
-        self.save_games()
+        self._games_by_id[game.id] = game
         return game
 
     def get_game(self, game_id: str) -> Game:
-        if game_id not in self.games_by_id:
+        if game_id not in self._games_by_id:
             raise Exception("invalid game_id")
-        return self.games_by_id[game_id]
+        return self._games_by_id[game_id]
 
     def save_games(self):
-        games_data = {game_id: game.to_json() for game_id, game in self.games_by_id.items()}
-        with open('games.json', 'w') as f:
+        games_data = {game_id: game.to_json() for game_id, game in self._games_by_id.items()}
+        with open(self.GAMES_FILENAME, 'w') as f:
             json.dump(games_data, f)
 
-    def load_games(self):
+    def _load_games(self):
         try:
-            with open(self.games_file, 'r') as f:
+            with open(self.GAMES_FILENAME, 'r') as f:
                 games_data = json.load(f)
             return {game_id: Game.from_json(game_json, self) for game_id, game_json in games_data.items()}
+        except FileNotFoundError:
+            return {}
+
+    def _load_puzzles(self):
+        try:
+            with open(self.PUZZLES_FILENAME, 'r') as f:
+                puzzle_data = json.load(f)
+            puzzles = [ Puzzle.from_JSON(str(id + 1), data) for id, data in enumerate(puzzle_data) ]
+            return { puzzle.id : puzzle for puzzle in puzzles }
         except FileNotFoundError:
             return {}

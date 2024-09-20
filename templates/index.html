@@ -139,10 +139,10 @@
         </div>
         {% if current_user.is_authenticated %}
             <div id="menu-controls">
-                <select id="puzzle_date">
+                <select id="puzzle_select">
                     {% for puzzle in puzzles %}
-                        <option value="{{ puzzle.date.isoformat() }}" data-id="{{ puzzle.id }}">
-                            Puzzle {{ puzzle.id }} - {{ puzzle.date.isoformat() }}
+                        <option value={{ puzzle.id }}>
+                            Puzzle #{{ puzzle.id }} - {{ puzzle.date.isoformat() }}
                         </option>
                     {% endfor %}
                 </select>
@@ -192,12 +192,11 @@
             }
 
             function endGame(message, guessReport = []) {
-                let puzzleId = $('#puzzle_date option:selected').data('id');
-                let puzzleDate = $('#puzzle_date').val();
+                let puzzleName = $('#puzzle_select option:selected').text();
                 let endGameDiv = $('<div id="end-game-message"></div>');
-                endGameDiv.append($('<h2></h2>').text(`Puzzle ${puzzleId} - ${puzzleDate}`));
+                endGameDiv.append($('<h2></h2>').text(`Puzzle ${puzzleName}`));
                 endGameDiv.append($('<p></p>').text(message));
-                
+
                 if (guessReport.length > 0) {
                     let reportDiv = $('<div id="guess-report"></div>');
                     reportDiv.append('<h3>Guess Report:</h3>');
@@ -208,12 +207,12 @@
 
                 endGameDiv.append($('<button id="return_to_menu">Return to Menu</button>'));
                 endGameDiv.append($('<button id="share_results">Share Results</button>'));
-                
+
                 $('#game').hide();
                 $('#game-controls').hide();
                 $('#end-game-message').remove(); // Remove any existing end game message
                 $('.container').append(endGameDiv); // Append to the container instead of body
-                
+
                 $('#return_to_menu').click(function() {
                     localStorage.removeItem('gameId');
                     gameId = null;
@@ -240,31 +239,27 @@
             }
 
             function generateResults(message, guessReport) {
-                let puzzleId = $('#puzzle_date option:selected').data('id');
-                let puzzleDate = $('#puzzle_date').val();
+                let puzzleName = $('#puzzle_select option:selected').text();
                 let solvedGroups = $('.solved-group').length;
-                
-                let resultString = `Secure Connections Puzzle ${puzzleId} - ${puzzleDate}\n`;
+
+                let resultString = `Secure Connections Puzzle ${puzzleName}\n`;
                 resultString += `${solvedGroups}/4 groups\n\n`;
                 resultString += guessReport.join('\n');
                 resultString += `\n\n${message}`;
-                
+
                 return resultString;
             }
 
             function updatePuzzleInfo() {
-                let selectedOption = $('#puzzle_date option:selected');
-                let puzzleId = selectedOption.data('id');
-                let puzzleDate = selectedOption.val();
-                $('#puzzle-info').text(`Puzzle ${puzzleId} - ${puzzleDate}`);
+                let puzzleName = $('#puzzle_select option:selected').text();
+                $('#puzzle-info').text(puzzleName);
             }
 
-            function loadGame(selectedDate) {
+            function loadGame(puzzleId) {
                 $.ajax({
-                    url: '/new_game',
+                    url: `/game/${puzzleId}`,
                     method: 'POST',
                     contentType: 'application/json',
-                    data: JSON.stringify({ date: selectedDate }),
                     success: function(data) {
                         gameId = data.game_id;
                         localStorage.setItem('gameId', gameId);
@@ -290,29 +285,29 @@
             }
 
             // Load the latest puzzle on page load
-            loadGame($('#puzzle_date').val());
+            loadGame($('#puzzle_select').val());
 
             // Change puzzle when date is changed
-            $('#puzzle_date').change(function() {
-                const selectedDate = $(this).val();
-                loadGame(selectedDate);
+            $('#puzzle_select').change(function() {
+                const puzzleId = $(this).val();
+                loadGame(puzzleId);
             });
 
             // Navigate to previous puzzle
             $('#prev-puzzle').click(function() {
                 if (currentPuzzleIndex > 0) {
                     currentPuzzleIndex--;
-                    $('#puzzle_date option').eq(currentPuzzleIndex).prop('selected', true);
-                    loadGame($('#puzzle_date').val());
+                    $('#puzzle_select option').eq(currentPuzzleIndex).prop('selected', true);
+                    loadGame($('#puzzle_select').val());
                 }
             });
 
             // Navigate to next puzzle
             $('#next-puzzle').click(function() {
-                if (currentPuzzleIndex < $('#puzzle_date option').length - 1) {
+                if (currentPuzzleIndex < $('#puzzle_select option').length - 1) {
                     currentPuzzleIndex++;
-                    $('#puzzle_date option').eq(currentPuzzleIndex).prop('selected', true);
-                    loadGame($('#puzzle_date').val());
+                    $('#puzzle_select option').eq(currentPuzzleIndex).prop('selected', true);
+                    loadGame($('#puzzle_select').val());
                 }
             });
 
@@ -398,9 +393,9 @@
             }
 
             function updatePuzzleNavigation() {
-                currentPuzzleIndex = $('#puzzle_date option:selected').index();
+                currentPuzzleIndex = $('#puzzle_select option:selected').index();
                 $('#prev-puzzle').toggle(currentPuzzleIndex > 0);
-                $('#next-puzzle').toggle(currentPuzzleIndex < $('#puzzle_date option').length - 1);
+                $('#next-puzzle').toggle(currentPuzzleIndex < $('#puzzle_select option').length - 1);
             }
         });
     </script>
