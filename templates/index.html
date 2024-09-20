@@ -55,6 +55,16 @@
 </head>
 <body>
     <h1>NYT Connections Clone</h1>
+    <div id="user-controls">
+        {% if current_user.is_authenticated %}
+            <p>Welcome, {{ current_user.username }}! <a href="{{ url_for('logout') }}">Logout</a></p>
+        {% else %}
+            <p><a href="{{ url_for('login') }}">Login</a> or <a href="{{ url_for('register') }}">Register</a></p>
+        {% endif %}
+    </div>
+    {% if current_user.is_authenticated %}
+        <p>Completed puzzles: <span id="completed-puzzles">{{ completed_puzzles }}</span></p>
+    {% endif %}
     <div id="menu-controls">
         <select id="puzzle_date">
             <option value="">Select a date</option>
@@ -90,10 +100,17 @@
                 $('#game').hide();
             }
 
+            function resetGameBoard() {
+                $('#solved_groups').empty();
+                $('#items').empty();
+                $('#attempts').text('');
+            }
+
             function endGame(message) {
                 alert(message);
                 localStorage.removeItem('gameId');
                 gameId = null;
+                resetGameBoard();
                 showMenuControls();
             }
 
@@ -112,9 +129,11 @@
                     }).fail(function() {
                         localStorage.removeItem('gameId');
                         gameId = null;
+                        resetGameBoard();
                         showMenuControls();
                     });
                 } else {
+                    resetGameBoard();
                     showMenuControls();
                 }
             }
@@ -135,6 +154,7 @@
                     success: function(data) {
                         gameId = data.game_id;
                         localStorage.setItem('gameId', gameId);
+                        resetGameBoard();
                         showGameControls();
                         updateItems(data.items);
                         $('#attempts').text(`Attempts remaining: 4`);
@@ -176,6 +196,7 @@
                         $('#attempts').text(`Attempts remaining: ${data.attempts_remaining}`);
                         if (data.solved) {
                             endGame("Congratulations! You've solved the puzzle!");
+                            $('#completed-puzzles').text(data.completed_puzzles);
                         } else if (data.attempts_remaining <= 0) {
                             endGame("Game Over! You've run out of attempts.");
                         }
