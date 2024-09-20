@@ -95,6 +95,7 @@ class Game:
         self.incorrect_guesses = set()
         self.correct_guesses = set()
         self.solved_groups = []
+        self.guess_report = []
         self.shuffled_items = [item for group in self.puzzle.groups for item in group.items]
         random.shuffle(self.shuffled_items)
 
@@ -124,6 +125,7 @@ class Game:
             group = self.puzzle.item_to_group(item)
             if group is None or group in self.solved_groups:
                 raise Exception("invalid items")
+        self.guess_report.append([color_to_symbol(self.puzzle.item_to_group(item).color) for item in items])
         counts_by_group = defaultdict(int)
         for item in items:
             group = self.puzzle.item_to_group(item)
