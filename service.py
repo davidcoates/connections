@@ -41,7 +41,7 @@ class Group:
         assert len(self.items) == ITEMS_PER_GROUP
 
 
-type Solution = Dict[Color, Group]
+type Solution = dict[Color, Group]
 
 @dataclass
 class Puzzle:
@@ -76,7 +76,7 @@ class Game:
     MAX_INCORRECT_GUESSES = 4
 
     def __init__(self, puzzle: Puzzle):
-        self.id = int(uuid.uuid4())
+        self.id = str(uuid.uuid4())
         self.puzzle = puzzle
         self.incorrect_guesses = set()
         self.correct_guesses = set()
@@ -149,6 +149,9 @@ class Service:
         with open(self.PUZZLES_FILENAME) as f:
             self.puzzles = [ Puzzle.from_JSON(id, puzzle) for id, puzzle in enumerate(json.load(f)) ]
 
+    def get_puzzles(self) -> list[Puzzle]:
+        return self.puzzles
+    
     def new_game(self, puzzle_id: int) -> Game:
         if puzzle_id < 0 or puzzle_id >= len(self.puzzles):
             raise Exception("invalid puzzle_id")
@@ -157,7 +160,7 @@ class Service:
         self.games_by_id[game.id] = game
         return game
 
-    def get_game(self, game_id: int) -> Game:
+    def get_game(self, game_id: str) -> Game:
         if game_id not in self.games_by_id:
             raise Exception("invalid game_id")
         return self.games_by_id[game_id]
