@@ -124,6 +124,7 @@ def guess(game_id):
     try:
         game = service.get_game(game_id)
         result = game.guess(items)
+        service.save_games()
         # Remove the service.save_games() call from here
         user_data = load_user_data()
         response_data = {
@@ -154,9 +155,6 @@ def save_current_puzzle():
 def get_current_puzzle():
     puzzle_id = service.get_current_puzzle(current_user.id)
     return jsonify({"puzzle_id": puzzle_id}), 200
-
-# Register the save_games function to be called when the app exits
-atexit.register(service.save_games)
 
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=5000)
