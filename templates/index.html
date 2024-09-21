@@ -354,7 +354,24 @@
             function updateSolvedGroups(solvedGroups) {
                 $('#solved-groups').empty();
                 solvedGroups.forEach(function(group) {
-                    const $group = $('<div class="solved-group"></div>').css('background-color', group.color.toLowerCase());
+                    let backgroundColor;
+                    switch(group.color.toLowerCase()) {
+                        case 'blue':
+                            backgroundColor = '#4169E1'; // Royal Blue
+                            break;
+                        case 'green':
+                            backgroundColor = '#2E8B57'; // Sea Green
+                            break;
+                        case 'yellow':
+                            backgroundColor = '#FFD700'; // Gold
+                            break;
+                        case 'purple':
+                            backgroundColor = '#8A2BE2'; // Blue Violet
+                            break;
+                        default:
+                            backgroundColor = group.color.toLowerCase();
+                    }
+                    const $group = $('<div class="solved-group"></div>').css('background-color', backgroundColor);
                     $group.append(`<h3>${group.category}</h3>`);
                     group.items.forEach(item => {
                         $group.append(`<div>${item}</div>`);
