@@ -224,12 +224,12 @@
                 $('.container').append(endGameDiv); // Append to the container instead of body
 
                 $('#share-results').click(function() {
-                    copyResultsToClipboard(message, guessReport);
+                    copyResultsToClipboard(guessReport);
                 });
             }
 
-            function copyResultsToClipboard(message, guessReport) {
-                let results = generateResults(message, guessReport);
+            function copyResultsToClipboard(guessReport) {
+                let results = generateResults(guessReport);
                 navigator.clipboard.writeText(results).then(function() {
                     alert('Results copied to clipboard!');
                 }, function(err) {
@@ -237,10 +237,11 @@
                 });
             }
 
-            function generateResults(message, guessReport) {
+            function generateResults(guessReport) {
                 let puzzleId = $('#puzzle-select option:selected').val();
-                return `Konnections\nPuzzle #${puzzleId}\n${guessReport.join('\n')}\n\n${message}`;
+                return `[Konnections](https://konnections.wlling.net)\nPuzzle #${puzzleId}\n${guessReport.join('\n')}`;
             }
+
 
             function loadGame(puzzleId) {
                 $.ajax({
