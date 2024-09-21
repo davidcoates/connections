@@ -286,6 +286,16 @@
             function updateGame(data, resultMessage) {
                 // display / clear result message
                 $('#guess-result').text(resultMessage);
+                // update solved groups
+                $('#solved-groups').empty();
+                data.solved_groups.forEach(function(group) {
+                    const $group = $('<div class="solved-group"></div>').css('background-color', groupToColorCode(group));
+                    $group.append(`<h3>${group.category}</h3>`);
+                    group.items.forEach(item => {
+                        $group.append(`<div>${item}</div>`);
+                    });
+                    $('#solved-groups').append($group);
+                });
                 // update solved items
                 $('#items').empty();
                 data.unsolved_items.forEach(function(item) {
@@ -296,16 +306,6 @@
                         });
                     }
                     $('#items').append($item);
-                });
-                // update solved groups
-                $('#solved-groups').empty();
-                data.solved_groups.forEach(function(group) {
-                    const $group = $('<div class="solved-group"></div>').css('background-color', groupToColorCode(group));
-                    $group.append(`<h3>${group.category}</h3>`);
-                    group.items.forEach(item => {
-                        $group.append(`<div>${item}</div>`);
-                    });
-                    $('#solved-groups').append($group);
                 });
                 // update attemps
                 $('#attempts').text(`Attempts remaining: ${data.attempts_remaining}`);
