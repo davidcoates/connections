@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure Connections</title>
+    <title>Konnections</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
         body {
@@ -140,7 +140,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Secure Connections</h1>
+        <h1>Konnections</h1>
         <div id="user-controls">
             {% if current_user.is_authenticated %}
                 <div class=left>
@@ -230,7 +230,7 @@
 
             function generateResults(message, guessReport) {
                 let puzzleId = $('#puzzle-select option:selected').val();
-                return `Secure Connections\nPuzzle #${puzzleId}\n${guessReport.join('\n')}\n\n${message}`;
+                return `Konnections\nPuzzle #${puzzleId}\n${guessReport.join('\n')}\n\n${message}`;
             }
 
             function loadGame(puzzleId) {
