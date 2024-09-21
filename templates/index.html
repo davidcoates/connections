@@ -253,6 +253,9 @@
                 }
             }
 
+            // Select the latest puzzle
+            $("#puzzle-select").prop("selectedIndex", $('#puzzle-select option').length - 1);
+
             // Load the latest puzzle on page load
             loadGame($('#puzzle-select').val());
 
