@@ -77,9 +77,14 @@
         #user-controls {
             display: flex;
             justify-content: space-between;
-            align-items: center;
             width: 100%;
             margin-bottom: 20px;
+        }
+        .left, .right {
+            flex-grow: 1;
+            flex-basis: 0;
+        }
+        .center {
         }
         #user-controls a {
             color: #4a90e2;
@@ -96,9 +101,6 @@
             display: flex;
             justify-content: space-between;
             margin-top: 20px;
-        }
-        #puzzle-navigation button {
-            padding: 5px 10px;
         }
         #puzzle-info {
             margin: 0;
@@ -141,9 +143,15 @@
         <h1>Secure Connections</h1>
         <div id="user-controls">
             {% if current_user.is_authenticated %}
-                <p>Welcome, {{ current_user.username }}!</p>
-                <p>Completed puzzles: <span id="completed-puzzles">{{ completed_puzzles }}</span></p>
-                <a href="{{ url_for('logout') }}">Logout</a>
+                <div class=left>
+                    <p>Welcome, {{ current_user.username }}!</p>
+                </div>
+                <div class=center>
+                    <p>Completed puzzles: <span id="completed-puzzles">{{ completed_puzzles }}</span></p>
+                </div>
+                <div class="right">
+                    <p><a href="{{ url_for('logout') }}">Logout</a></p>
+                </div>
             {% else %}
                 <a href="{{ url_for('login') }}">Login</a>
                 <a href="{{ url_for('register') }}">Register</a>
@@ -152,15 +160,21 @@
         {% if current_user.is_authenticated %}
             <div id="menu-controls">
                 <div id="puzzle-navigation">
-                    <button id="prev-puzzle">&lt; Prev Puzzle</button>
-                    <select id="puzzle-select">
-                        {% for puzzle in puzzles %}
-                            <option value="{{ puzzle.id }}" data-date="{{ puzzle.date.strftime('%A, %d. %B %Y') }}" data-author="{{ puzzle.author }}">
-                                Puzzle #{{ puzzle.id }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                    <button id="next-puzzle">Next Puzzle &gt;</button>
+                    <div class=left>
+                        <button id="prev-puzzle">&lt; Prev Puzzle</button>
+                    </div>
+                    <div class=center>
+                        <select id="puzzle-select">
+                            {% for puzzle in puzzles %}
+                                <option value="{{ puzzle.id }}" data-date="{{ puzzle.date.strftime('%A, %d. %B %Y') }}" data-author="{{ puzzle.author }}">
+                                    Puzzle #{{ puzzle.id }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class=right>
+                        <button id="next-puzzle">Next Puzzle &gt;</button>
+                    </div>
                 </div>
             </div>
             <div id="game">
