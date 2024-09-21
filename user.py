@@ -52,18 +52,6 @@ def try_fetch_user(name, password = None) -> User | None:
         return None
     return user
 
-    if name not in user_data:
-        return None
-    return User(name)
-
-    def set_password(self, password):
-        self.data['password'] = generate_password_hash(password)
-        self.save()
-
-    def check_password(self, password) -> bool:
-        return check_password_hash(self.data['password'], password)
-
-
 def try_create_user(name, password) -> User | None:
     if name in users_by_name:
         return None
@@ -75,8 +63,7 @@ def try_create_user(name, password) -> User | None:
     user = User(name, data)
     users_by_name[name] = user
     save_user_data()
-    return None
-
+    return user
 
 class AnonymousUser(AnonymousUserMixin):
 
