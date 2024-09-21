@@ -124,7 +124,7 @@ class GameDecoder(JSONDecoder):
     def object_hook(self, data):
         if all(key in data for key in ('_id', '_puzzle', '_solved_groups', '_guess_report', '_incorrect_guesses', '_correct_guesses', '_shuffled_items')):
             puzzle = self.service.get_puzzle(data['_puzzle'])
-            game = Game(puzzle)
+            game = Game(self.service, puzzle)
             game._id = data['_id']
             game._solved_groups = [game._puzzle.get_group_by_color(Color[color]) for color in data['_solved_groups']]
             game._guess_report = data['_guess_report']
@@ -139,7 +139,8 @@ class Game:
 
     MAX_INCORRECT_GUESSES = 4
 
-    def __init__(self, puzzle: Puzzle):
+    def __init__(self, service, puzzle: Puzzle):
+        self._service = service
         self._id = str(uuid.uuid4())
         self._puzzle = puzzle
         self._solved_groups = []
@@ -180,6 +181,12 @@ class Game:
         return len(self.solved_groups) == len(Color)
 
     def guess(self, items: Items) -> Guess:
+        result = self._guess(items)
+        if result != Guess.ALREADY_GUESSED:
+            self._service._on_game_updated(self)
+        return result
+
+    def _guess(self, items: Items) -> Guess:
         if self.solved:
             raise Exception("already solved")
         if self.attempts_remaining == 0:
@@ -240,8 +247,9 @@ class Service:
         if puzzle_id not in self._puzzles_by_id:
             raise Exception("invalid puzzle_id")
         puzzle = self._puzzles_by_id[puzzle_id]
-        game = Game(puzzle)
+        game = Game(self, puzzle)
         self._games_by_id[game.id] = game
+        self._save_games()
         return game
 
     def get_game(self, game_id: str) -> Game:
@@ -249,7 +257,10 @@ class Service:
             raise Exception("invalid game_id")
         return self._games_by_id[game_id]
 
-    def save_games(self):
+    def _on_game_updated(self, game):
+        self._save_games()
+
+    def _save_games(self):
         games_data = {game_id: game.to_json() for game_id, game in self._games_by_id.items()}
         with open(self.GAMES_FILENAME, 'w') as f:
             json.dump(games_data, f)
@@ -270,18 +281,3 @@ class Service:
             return { puzzle.id : puzzle for puzzle in puzzles }
         except FileNotFoundError:
             return {}
-
-    def save_current_puzzle(self, user_id, puzzle_id):
-        with open('user_data.json', 'r+') as f:
-            user_data = json.load(f)
-            if str(user_id) not in user_data:
-                user_data[str(user_id)] = {}
-            user_data[str(user_id)]['current_puzzle'] = puzzle_id
-            f.seek(0)
-            json.dump(user_data, f, indent=4)
-            f.truncate()
-
-    def get_current_puzzle(self, user_id):
-        with open('user_data.json', 'r') as f:
-            user_data = json.load(f)
-            return user_data.get(str(user_id), {}).get('current_puzzle')
