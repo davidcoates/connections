@@ -199,6 +199,9 @@
             let currentPuzzleIndex = 0;
 
             function endGame(message, guessReport = []) {
+
+                $('#guess-result').text('');
+
                 let endGameDiv = $('<div id="end-game-message"></div>');
                 endGameDiv.append($('<p></p>').text(message));
 
