@@ -104,6 +104,7 @@ def new_game(puzzle_id):
             game = service.get_game(game_id)
         else:
             game = service.new_game(puzzle.id)
+            service.save_games()
             user_puzzles[puzzle.id] = game.id
             save_user_data(user_data)
         return jsonify({
