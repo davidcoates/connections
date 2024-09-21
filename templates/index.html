@@ -100,6 +100,14 @@
         #puzzle-navigation button {
             padding: 5px 10px;
         }
+        #puzzle-info {
+            margin: 0;
+            padding: 0;
+        }
+        #puzzle-info h2, h3 {
+            margin-top: 1px;
+            margin-bottom: 1px;
+        }
         #end-game-message {
             background-color: #1e1e1e;
             padding: 20px;
@@ -147,8 +155,8 @@
                     <button id="prev-puzzle">&lt; Prev Puzzle</button>
                     <select id="puzzle-select">
                         {% for puzzle in puzzles %}
-                            <option value={{ puzzle.id }}>
-                                #{{ puzzle.id }} - {{ puzzle.date.isoformat() }}
+                            <option value="{{ puzzle.id }}" data-date="{{ puzzle.date.strftime('%A, %d. %B %Y') }}" data-author="{{ puzzle.author }}">
+                                Puzzle #{{ puzzle.id }}
                             </option>
                         {% endfor %}
                     </select>
@@ -156,6 +164,7 @@
                 </div>
             </div>
             <div id="game">
+                <div id="puzzle-info"></div>
                 <p id="guess-result"></p>
                 <div id="solved-groups"></div>
                 <div class="items" id="items"></div>
@@ -206,8 +215,8 @@
             }
 
             function generateResults(message, guessReport) {
-                let puzzleName = $('#puzzle-select option:selected').text().trim();
-                return `Secure Connections\nPuzzle ${puzzleName}\n${guessReport.join('\n')}\n\n${message}`;
+                let puzzleId = $('#puzzle-select option:selected').val();
+                return `Secure Connections\nPuzzle #${puzzleId}\n${guessReport.join('\n')}\n\n${message}`;
             }
 
             function loadGame(puzzleId) {
@@ -338,6 +347,14 @@
             }
 
             function updatePuzzleNavigation() {
+                let puzzle = $('#puzzle-select option:selected');
+                let puzzleId = puzzle.val();
+                let puzzleDate = puzzle.data("date");
+                let puzzleAuthor = puzzle.data("author");
+                $('#puzzle-info').empty();
+                $('#puzzle-info').append($('<h2></h2>').text(puzzleDate));
+                $('#puzzle-info').append($('<h3></h3>').text(`No. ${puzzleId}`));
+                $('#puzzle-info').append($('<h3></h3>').text(`By ${puzzleAuthor}`));
                 currentPuzzleIndex = $('#puzzle-select option:selected').index();
                 $('#prev-puzzle').css('visibility', currentPuzzleIndex > 0 ? 'visible' : 'hidden');
                 $('#next-puzzle').css('visibility', currentPuzzleIndex < $('#puzzle-select option').length - 1 ? 'visible' : 'hidden');
