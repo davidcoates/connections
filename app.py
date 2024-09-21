@@ -26,7 +26,7 @@ def load_user(username):
 @app.route('/')
 def index():
     puzzles = service.get_puzzles()
-    completed_puzzles = current_user.data.get('completed_puzzles', 0)
+    completed_puzzles = current_user.data['completed_puzzles']
     return render_template('index.html', puzzles=puzzles, completed_puzzles=completed_puzzles)
 
 @app.route('/login', methods=['GET', 'POST'])
