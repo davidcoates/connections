@@ -252,6 +252,17 @@
                         localStorage.setItem('gameId', gameId);
                         updatePuzzleNavigation();
                         updateGame(data, '');
+                        
+                        // Save the current puzzle ID to the server
+                        $.ajax({
+                            url: '/save_current_puzzle',
+                            method: 'POST',
+                            contentType: 'application/json',
+                            data: JSON.stringify({ puzzle_id: puzzleId }),
+                            error: function(err) {
+                                console.error('Failed to save current puzzle:', err);
+                            }
+                        });
                     },
                     error: function(err) {
                         alert(err.responseJSON.error);
@@ -311,11 +322,27 @@
                 }
             }
 
-            // Select the latest puzzle
-            $("#puzzle-select").prop("selectedIndex", $('#puzzle-select option').length - 1);
-
-            // Load the latest puzzle on page load
-            loadGame($('#puzzle-select').val());
+            // Load the user's last puzzle on page load
+            $.ajax({
+                url: '/get_current_puzzle',
+                method: 'GET',
+                success: function(data) {
+                    if (data.puzzle_id) {
+                        $('#puzzle-select').val(data.puzzle_id);
+                        loadGame(data.puzzle_id);
+                    } else {
+                        // If no saved puzzle, load the latest one
+                        $("#puzzle-select").prop("selectedIndex", $('#puzzle-select option').length - 1);
+                        loadGame($('#puzzle-select').val());
+                    }
+                },
+                error: function(err) {
+                    console.error('Failed to get current puzzle:', err);
+                    // Load the latest puzzle as fallback
+                    $("#puzzle-select").prop("selectedIndex", $('#puzzle-select option').length - 1);
+                    loadGame($('#puzzle-select').val());
+                }
+            });
 
             // Change puzzle when drop down selection is changed
             $('#puzzle-select').change(function() {

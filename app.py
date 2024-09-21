@@ -142,6 +142,19 @@ def guess(game_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
+@app.route('/save_current_puzzle', methods=['POST'])
+@login_required
+def save_current_puzzle():
+    puzzle_id = request.json.get('puzzle_id')
+    service.save_current_puzzle(current_user.id, puzzle_id)
+    return jsonify({"success": True}), 200
+
+@app.route('/get_current_puzzle', methods=['GET'])
+@login_required
+def get_current_puzzle():
+    puzzle_id = service.get_current_puzzle(current_user.id)
+    return jsonify({"puzzle_id": puzzle_id}), 200
+
 # Register the save_games function to be called when the app exits
 atexit.register(service.save_games)
 

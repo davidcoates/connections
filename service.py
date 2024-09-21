@@ -259,3 +259,18 @@ class Service:
             return { puzzle.id : puzzle for puzzle in puzzles }
         except FileNotFoundError:
             return {}
+
+    def save_current_puzzle(self, user_id, puzzle_id):
+        with open('user_data.json', 'r+') as f:
+            user_data = json.load(f)
+            if str(user_id) not in user_data:
+                user_data[str(user_id)] = {}
+            user_data[str(user_id)]['current_puzzle'] = puzzle_id
+            f.seek(0)
+            json.dump(user_data, f, indent=4)
+            f.truncate()
+
+    def get_current_puzzle(self, user_id):
+        with open('user_data.json', 'r') as f:
+            user_data = json.load(f)
+            return user_data.get(str(user_id), {}).get('current_puzzle')
