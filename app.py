@@ -1,52 +1,32 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from service import Service, color_to_symbol, Color
+from user import *
 from datetime import datetime
 import json
 import os
-import atexit
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key_here'  # Change this to a random secret key
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+login_manager.anonymous_user = AnonymousUser
 
 service = Service()
-USER_DATA_FILENAME = "user_data.json"
 
-class User(UserMixin):
-    def __init__(self, username):
-        self.id = username
-        self.username = username
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
 
 @login_manager.user_loader
 def load_user(username):
-    user_data = load_user_data()
-    if username in user_data:
-        return User(username)
-    return None
-
-def load_user_data():
-    if os.path.exists(USER_DATA_FILENAME):
-        with open(USER_DATA_FILENAME, 'r') as f:
-            return json.load(f)
-    else:
-        # Create the file with empty data if it doesn't exist
-        empty_data = {}
-        save_user_data(empty_data)
-        return empty_data
-
-def save_user_data(data):
-    with open(USER_DATA_FILENAME, 'w') as f:
-        json.dump(data, f)
+    return try_fetch_user(username)
 
 @app.route('/')
 def index():
     puzzles = service.get_puzzles()
-    user_data = load_user_data()
-    completed_puzzles = user_data.get(current_user.username, {}).get("completed_puzzles", 0) if current_user.is_authenticated else 0
+    completed_puzzles = current_user.data.get('completed_puzzles', 0)
     return render_template('index.html', puzzles=puzzles, completed_puzzles=completed_puzzles)
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -54,13 +34,12 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        user_data = load_user_data()
-        if username in user_data and check_password_hash(user_data[username]['password'], password):
-            user = User(username)
+        user = try_fetch_user(username, password)
+        if user is None:
+            flash('Invalid username or password')
+        else:
             login_user(user)
             return redirect(url_for('index'))
-        else:
-            flash('Invalid username or password')
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -68,23 +47,15 @@ def register():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        user_data = load_user_data()
-        if username in user_data:
+        user = try_create_user(username, password)
+        if user is None:
             flash('Username already exists')
         else:
-            user_data[username] = {
-                'password': generate_password_hash(password),
-                'completed_puzzles': 0,
-                'puzzle_attempts': {}
-            }
-            save_user_data(user_data)
-            user = User(username)
             login_user(user)
             return redirect(url_for('index'))
     return render_template('register.html')
 
 @app.route('/logout')
-@login_required
 def logout():
     logout_user()
     return redirect(url_for('index'))
@@ -93,19 +64,17 @@ def serialize_group(group):
     return { 'color': group.color.name, 'category': group.category, 'items': group.items }
 
 @app.route('/game/<puzzle_id>', methods=['POST'])
-@login_required
 def new_game(puzzle_id):
     try:
         puzzle = service.get_puzzle(puzzle_id)
-        user_data = load_user_data()
-        user_puzzles = user_data[current_user.username]['puzzle_attempts']
+        user_puzzles = current_user.data['puzzle_attempts']
         if puzzle.id in user_puzzles:
             game_id = user_puzzles[puzzle.id]
             game = service.get_game(game_id)
         else:
             game = service.new_game(puzzle.id)
             user_puzzles[puzzle.id] = game.id
-            save_user_data(user_data)
+            current_user.save()
         return jsonify({
             'game_id': game.id,
             'unsolved_items': game.unsolved_items,
@@ -118,14 +87,12 @@ def new_game(puzzle_id):
         return jsonify({'error': str(e)}), 400
 
 @app.route('/guess/<game_id>', methods=['POST'])
-@login_required
 def guess(game_id):
     items = request.json.get('items', [])
     try:
         game = service.get_game(game_id)
         result = game.guess(items)
         # Remove the service.save_games() call from here
-        user_data = load_user_data()
         response_data = {
             'result': result.name,
             'unsolved_items': game.unsolved_items,
@@ -135,27 +102,23 @@ def guess(game_id):
             'guess_report': game.guess_report
         }
         if game.solved:
-            user_data[current_user.username]['completed_puzzles'] += 1
-            save_user_data(user_data)
-            response_data['completed_puzzles'] = user_data[current_user.username]['completed_puzzles']
+            current_user.data['completed_puzzles'] += 1
+            current_user.save()
+            response_data['completed_puzzles'] = current_user.data['completed_puzzles']
         return jsonify(response_data), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
 @app.route('/save_current_puzzle', methods=['POST'])
-@login_required
 def save_current_puzzle():
     puzzle_id = request.json.get('puzzle_id')
-    user_data = load_user_data()
-    user_data[current_user.username]['current_puzzle'] = puzzle_id
-    save_user_data(user_data)
+    current_user.data['current_puzzle'] = puzzle_id
+    current_user.save()
     return jsonify({"success": True}), 200
 
 @app.route('/get_current_puzzle', methods=['GET'])
-@login_required
 def get_current_puzzle():
-    user_data = load_user_data()
-    puzzle_id = user_data.get(current_user.username, {}).get('current_puzzle')
+    puzzle_id = current_user.data.get('current_puzzle')
     return jsonify({"puzzle_id": puzzle_id}), 200
 
 if __name__ == '__main__':

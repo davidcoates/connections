@@ -163,39 +163,35 @@
                 </div>
             {% endif %}
         </div>
-        {% if current_user.is_authenticated %}
-            <div id="menu-controls">
-                <div id="puzzle-navigation">
-                    <div class=left>
-                        <button id="prev-puzzle">&lt; Prev Puzzle</button>
-                    </div>
-                    <div class=center>
-                        <select id="puzzle-select">
-                            {% for puzzle in puzzles %}
-                                <option value="{{ puzzle.id }}" data-date="{{ puzzle.date.strftime('%A, %d. %B %Y') }}" data-author="{{ puzzle.author }}">
-                                    Puzzle #{{ puzzle.id }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class=right>
-                        <button id="next-puzzle">Next Puzzle &gt;</button>
-                    </div>
+        <div id="menu-controls">
+            <div id="puzzle-navigation">
+                <div class=left>
+                    <button id="prev-puzzle">&lt; Prev Puzzle</button>
+                </div>
+                <div class=center>
+                    <select id="puzzle-select">
+                        {% for puzzle in puzzles %}
+                            <option value="{{ puzzle.id }}" data-date="{{ puzzle.date.strftime('%A, %d. %B %Y') }}" data-author="{{ puzzle.author }}">
+                                Puzzle #{{ puzzle.id }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class=right>
+                    <button id="next-puzzle">Next Puzzle &gt;</button>
                 </div>
             </div>
-            <div id="game">
-                <div id="puzzle-info"></div>
-                <p id="guess-result"></p>
-                <div id="solved-groups"></div>
-                <div class="items" id="items"></div>
-            </div>
-            <div id="game-controls">
-                <button id="submit-guess">Submit Guess</button>
-                <div id="attempts"></div>
-            </div>
-        {% else %}
-            <p>Please log in to play the game.</p>
-        {% endif %}
+        </div>
+        <div id="game">
+            <div id="puzzle-info"></div>
+            <p id="guess-result"></p>
+            <div id="solved-groups"></div>
+            <div class="items" id="items"></div>
+        </div>
+        <div id="game-controls">
+            <button id="submit-guess">Submit Guess</button>
+            <div id="attempts"></div>
+        </div>
     </div>
 
     <script>
