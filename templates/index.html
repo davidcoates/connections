@@ -144,11 +144,11 @@
         {% if current_user.is_authenticated %}
             <div id="menu-controls">
                 <div id="puzzle-navigation">
-                    <button id="prev-puzzle">&lt; Previous Puzzle</button>
+                    <button id="prev-puzzle">&lt; Prev Puzzle</button>
                     <select id="puzzle-select">
                         {% for puzzle in puzzles %}
                             <option value={{ puzzle.id }}>
-                                Puzzle #{{ puzzle.id }} - {{ puzzle.date.isoformat() }}
+                                #{{ puzzle.id }} - {{ puzzle.date.isoformat() }}
                             </option>
                         {% endfor %}
                     </select>
@@ -156,7 +156,6 @@
                 </div>
             </div>
             <div id="game">
-                <h2 id="puzzle-info"></h2>
                 <p id="guess-result"></p>
                 <div id="solved-groups"></div>
                 <div class="items" id="items"></div>
@@ -207,15 +206,8 @@
             }
 
             function generateResults(message, guessReport) {
-                let puzzleName = $('#puzzle-select option:selected').text();
-                let solvedGroups = $('.solved-group').length;
-
-                let resultString = `Secure Connections Puzzle ${puzzleName}\n`;
-                resultString += `${solvedGroups}/4 groups\n\n`;
-                resultString += guessReport.join('\n');
-                resultString += `\n\n${message}`;
-
-                return resultString;
+                let puzzleName = $('#puzzle-select option:selected').text().trim();
+                return `Secure Connections\nPuzzle ${puzzleName}\n${guessReport.join('\n')}\n\n${message}`;
             }
 
             function loadGame(puzzleId) {
@@ -346,8 +338,6 @@
             }
 
             function updatePuzzleNavigation() {
-                let puzzleName = $('#puzzle-select option:selected').text();
-                $('#puzzle-info').text(puzzleName);
                 currentPuzzleIndex = $('#puzzle-select option:selected').index();
                 $('#prev-puzzle').css('visibility', currentPuzzleIndex > 0 ? 'visible' : 'hidden');
                 $('#next-puzzle').css('visibility', currentPuzzleIndex < $('#puzzle-select option').length - 1 ? 'visible' : 'hidden');
