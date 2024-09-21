@@ -75,6 +75,7 @@ def try_create_user(name, password) -> User | None:
     user = User(name, data)
     users_by_name[name] = user
     save_user_data()
+    return None
 
 
 class AnonymousUser(AnonymousUserMixin):
