@@ -73,11 +73,22 @@ class Puzzle:
         groups = [ Group.from_JSON(group) for group in data['groups'] ]
         return Puzzle(id, date, author, groups)
 
-    def item_to_group(self, item: Item) -> Group | None:
+    def try_get_group_by_item(self, item: Item) -> Group | None:
         for group in self.groups:
             if item in group.items:
                 return group
         return None
+
+    def get_group_by_item(self, item: Item) -> Group:
+        group = self.try_get_group_by_item(item)
+        assert group is not None
+        return group
+
+    def get_group_by_color(self, color: Color) -> Group:
+        for group in self.groups:
+            if group.color == color:
+                return group
+        assert False
 
 
 class Guess(Enum):
@@ -115,7 +126,7 @@ class GameDecoder(JSONDecoder):
             puzzle = self.service.get_puzzle(data['_puzzle'])
             game = Game(puzzle)
             game._id = data['_id']
-            game._solved_groups = [group for group in game._puzzle.groups if group.color.name in data['_solved_groups']]
+            game._solved_groups = [game._puzzle.get_group_by_color(Color[color]) for color in data['_solved_groups']]
             game._guess_report = data['_guess_report']
             game._incorrect_guesses = set(frozenset(guess) for guess in data['_incorrect_guesses'])
             game._correct_guesses = set(frozenset(guess) for guess in data['_correct_guesses'])
@@ -154,7 +165,7 @@ class Game:
     @property
     def unsolved_items(self) -> list[Item]:
         """ List of unsolved items, in the order they should be displayed """
-        return [ item for item in self._shuffled_items if self._puzzle.item_to_group(item) not in self._solved_groups ]
+        return [ item for item in self._shuffled_items if self._puzzle.get_group_by_item(item) not in self._solved_groups ]
 
     @property
     def guess_report(self) -> list[str]:
@@ -179,13 +190,13 @@ class Game:
         if guess in self._incorrect_guesses or guess in self._correct_guesses:
             return Guess.ALREADY_GUESSED
         for item in items:
-            group = self._puzzle.item_to_group(item)
+            group = self._puzzle.try_get_group_by_item(item)
             if group is None or group in self._solved_groups:
                 raise Exception("invalid items")
-        self.guess_report.append(''.join([color_to_symbol(self._puzzle.item_to_group(item).color) for item in items]))
+        self.guess_report.append(''.join([color_to_symbol(self._puzzle.get_group_by_item(item).color) for item in items]))
         counts_by_group = defaultdict(int)
         for item in items:
-            group = self._puzzle.item_to_group(item)
+            group = self._puzzle.get_group_by_item(item)
             counts_by_group[group] += 1
         counts = sorted(list(counts_by_group.values()))
         if counts == [4]:
