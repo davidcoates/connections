@@ -199,6 +199,9 @@
             let currentPuzzleIndex = 0;
 
             function endGame(message, guessReport = []) {
+
+                $('#guess-result').text('');
+
                 let endGameDiv = $('<div id="end-game-message"></div>');
                 endGameDiv.append($('<p></p>').text(message));
 
@@ -251,10 +254,32 @@
             }
 
             function updateGame(data, resultMessage) {
+                // display / clear result message
                 $('#guess-result').text(resultMessage);
-                updateUnsolvedItems(data.unsolved_items);
-                updateSolvedGroups(data.solved_groups);
+                // update solved items
+                $('#items').empty();
+                data.unsolved_items.forEach(function(item) {
+                    const $item = $('<div class="item"></div>').text(item);
+                    if (!data.solved && data.attemps_remaining > 0) {
+                        $item.click(function() {
+                            $(this).toggleClass('selected');
+                        });
+                    }
+                    $('#items').append($item);
+                });
+                // update solved groups
+                $('#solved-groups').empty();
+                data.solved_groups.forEach(function(group) {
+                    const $group = $('<div class="solved-group"></div>').css('background-color', group.color.toLowerCase());
+                    $group.append(`<h3>${group.category}</h3>`);
+                    group.items.forEach(item => {
+                        $group.append(`<div>${item}</div>`);
+                    });
+                    $('#solved-groups').append($group);
+                });
+                // update attemps
                 $('#attempts').text(`Attempts remaining: ${data.attempts_remaining}`);
+                // display end-game info
                 $('#end-game-message').remove();
                 if (data.solved) {
                     $('#game-controls').hide();
