@@ -2,3 +2,4 @@ puzzles.json
 __pycache__/
 user_data.json
 games.json
+.venv
