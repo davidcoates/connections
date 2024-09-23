@@ -235,27 +235,20 @@ class Service:
         self._puzzles_by_id = self._load_puzzles()
         self._games_by_id = self._load_games()
 
-    def get_puzzle(self, puzzle_id: str) -> Puzzle:
-        if puzzle_id not in self._puzzles_by_id:
-            raise Exception("invalid puzzle_id")
-        return self._puzzles_by_id[puzzle_id]
-
     def get_puzzles(self) -> list[Puzzle]:
         return list(self._puzzles_by_id.values())
 
-    def new_game(self, puzzle_id: str) -> Game:
-        if puzzle_id not in self._puzzles_by_id:
-            raise Exception("invalid puzzle_id")
-        puzzle = self._puzzles_by_id[puzzle_id]
+    def get_puzzle(self, puzzle_id: str) -> Puzzle | None:
+        return self._puzzles_by_id.get(puzzle_id)
+
+    def new_game(self, puzzle: Puzzle) -> Game:
         game = Game(self, puzzle)
         self._games_by_id[game.id] = game
         self._save_games()
         return game
 
-    def get_game(self, game_id: str) -> Game:
-        if game_id not in self._games_by_id:
-            raise Exception("invalid game_id")
-        return self._games_by_id[game_id]
+    def get_game(self, game_id: str) -> Game | None:
+        return self._games_by_id.get(game_id)
 
     def _on_game_updated(self, game):
         self._save_games()

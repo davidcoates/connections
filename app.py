@@ -64,16 +64,19 @@ def serialize_group(group):
     return { 'color': group.color.name, 'category': group.category, 'items': group.items }
 
 @app.route('/game/<puzzle_id>', methods=['POST'])
-def new_game(puzzle_id):
+def game(puzzle_id):
     try:
-        puzzle = service.get_puzzle(puzzle_id)
-        user_puzzles = current_user.data['puzzle_attempts']
-        if puzzle.id in user_puzzles:
-            game_id = user_puzzles[puzzle.id]
+        game = None
+        puzzle_attempts = current_user.data['puzzle_attempts']
+        if puzzle_id in puzzle_attempts:
+            game_id = puzzle_attempts[puzzle_id]
             game = service.get_game(game_id)
-        else:
-            game = service.new_game(puzzle.id)
-            user_puzzles[puzzle.id] = game.id
+        if game is None:
+            puzzle = service.get_puzzle(puzzle_id)
+            if puzzle is None:
+                raise Exception("invalid puzzle_id")
+            game = service.new_game(puzzle)
+            puzzle_attempts[puzzle_id] = game.id
             current_user.save()
         return jsonify({
             'game_id': game.id,
