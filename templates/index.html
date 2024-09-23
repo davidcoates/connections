@@ -197,6 +197,9 @@
         let gameId = localStorage.getItem('gameId');
         let currentPuzzleIndex = 0;
 
+        const hasNextPuzzle = currentPuzzleIndex < puzzleSelect.options.length - 1;
+        const hasPrevPuzzle = currentPuzzleIndex > 0;
+
         function endGame(message, guessReport = []) {
             document.querySelector('#guess-result').innerText = '';
 
@@ -414,8 +417,8 @@
             puzzleInfo.innerHTML = '';
             puzzleInfo.innerHTML = `<h2>${puzzleDate}</h2><h3>No. ${puzzleId}</h3><h3>By ${puzzleAuthor}</h3>`;
             currentPuzzleIndex = puzzleSelect.selectedIndex;
-            document.querySelector('#prev-puzzle').style.visibility = currentPuzzleIndex > 0 ? 'visible' : 'hidden';
-            document.querySelector('#next-puzzle').style.visibility = currentPuzzleIndex < puzzleSelect.options.length - 1 ? 'visible' : 'hidden';
+            document.querySelector('#prev-puzzle').style.visibility = hasPrevPuzzle ? 'visible' : 'hidden';
+            document.querySelector('#next-puzzle').style.visibility = hasNextPuzzle ? 'visible' : 'hidden';
         }
     </script>
 </body>
