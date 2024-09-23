@@ -321,7 +321,7 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
+        const loadGame = (puzzleId) => {
             fetch('/get_current_puzzle', {
                 method: 'GET'
             })
@@ -342,70 +342,73 @@
                     puzzleSelect.selectedIndex = puzzleSelect.options.length - 1;
                     loadGame(puzzleSelect.value);
                 });
+        }
 
-            document.querySelector('#puzzle-select').addEventListener('change', () => {
-                loadGame(document.querySelector('#puzzle-select').value);
-            });
+        document.querySelector('#puzzle-select').addEventListener('change', loadGame(document.querySelector('#puzzle-select').value));
 
-            document.querySelector('#prev-puzzle').addEventListener('click', () => {
-                if (currentPuzzleIndex > 0) {
-                    currentPuzzleIndex--;
-                    const puzzleSelect = document.querySelector('#puzzle-select');
-                    puzzleSelect.selectedIndex = currentPuzzleIndex;
-                    loadGame(puzzleSelect.value);
-                }
-            });
-
-            document.querySelector('#next-puzzle').addEventListener('click', () => {
+        const navigateToPrevPuzzle = () => {
+            if (currentPuzzleIndex > 0) {
+                currentPuzzleIndex--;
                 const puzzleSelect = document.querySelector('#puzzle-select');
-                if (currentPuzzleIndex < puzzleSelect.options.length - 1) {
-                    currentPuzzleIndex++;
-                    puzzleSelect.selectedIndex = currentPuzzleIndex;
-                    loadGame(puzzleSelect.value);
-                }
-            });
+                puzzleSelect.selectedIndex = currentPuzzleIndex;
+                loadGame(puzzleSelect.value);
+            }
+        };
 
-            document.querySelector('#submit-guess').addEventListener('click', () => {
-                if (!gameId) {
-                    document.querySelector('#guess-result').innerText = "Please start a new game first.";
-                    return;
-                }
-                const selectedItems = [...document.querySelectorAll('.item.selected')].map(item => item.textContent);
-                if (selectedItems.length !== 4) {
-                    document.querySelector('#guess-result').innerText = "Please select exactly 4 items.";
-                    return;
-                }
-                fetch(`/guess/${gameId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ items: selectedItems })
+        const navigateToNextPuzzle = () => {
+            const puzzleSelect = document.querySelector('#puzzle-select');
+            if (currentPuzzleIndex < puzzleSelect.options.length - 1) {
+                currentPuzzleIndex++;
+                puzzleSelect.selectedIndex = currentPuzzleIndex;
+                loadGame(puzzleSelect.value);
+            }
+        };
+
+        document.querySelector('#prev-puzzle').addEventListener('click', navigateToPrevPuzzle);
+        document.querySelector('#next-puzzle').addEventListener('click', navigateToNextPuzzle);
+
+        const submitGuess = () => {
+            if (!gameId) {
+                document.querySelector('#guess-result').innerText = "Please start a new game first.";
+                return;
+            }
+            const selectedItems = [...document.querySelectorAll('.item.selected')].map(item => item.textContent);
+            if (selectedItems.length !== 4) {
+                document.querySelector('#guess-result').innerText = "Please select exactly 4 items.";
+                return;
+            }
+            fetch(`/guess/${gameId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items: selectedItems })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    let resultMessage;
+                    switch (data.result) {
+                        case 'CORRECT':
+                            resultMessage = "Correct! You've found a group.";
+                            break;
+                        case 'INCORRECT':
+                            resultMessage = "Incorrect. Try again.";
+                            break;
+                        case 'INCORRECT_ONE_AWAY':
+                            resultMessage = "Close! You're one away from a correct group.";
+                            break;
+                        case 'ALREADY_GUESSED':
+                            resultMessage = "You've already guessed this combination.";
+                            break;
+                        default:
+                            resultMessage = "Unknown result.";
+                    }
+                    updateGame(data, resultMessage);
                 })
-                    .then(response => response.json())
-                    .then(data => {
-                        let resultMessage;
-                        switch (data.result) {
-                            case 'CORRECT':
-                                resultMessage = "Correct! You've found a group.";
-                                break;
-                            case 'INCORRECT':
-                                resultMessage = "Incorrect. Try again.";
-                                break;
-                            case 'INCORRECT_ONE_AWAY':
-                                resultMessage = "Close! You're one away from a correct group.";
-                                break;
-                            case 'ALREADY_GUESSED':
-                                resultMessage = "You've already guessed this combination.";
-                                break;
-                            default:
-                                resultMessage = "Unknown result.";
-                        }
-                        updateGame(data, resultMessage);
-                    })
-                    .catch(err => {
-                        document.querySelector('#guess-result').innerText = err.message;
-                    });
-            });
-        });
+                .catch(err => {
+                    document.querySelector('#guess-result').innerText = err.message;
+                });
+        }
+
+        document.querySelector('#submit-guess').addEventListener('click', submitGuess);
 
         const updatePuzzleNavigation = () => {
             const puzzleSelect = document.querySelector('#puzzle-select');
