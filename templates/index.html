@@ -197,6 +197,7 @@
         let gameId = localStorage.getItem('gameId');
         let currentPuzzleIndex = 0;
 
+        const puzzleSelect = document.querySelector('#puzzle-select');
         const hasNextPuzzle = currentPuzzleIndex < puzzleSelect.options.length - 1;
         const hasPrevPuzzle = currentPuzzleIndex > 0;
 
@@ -276,7 +277,7 @@
             document.querySelector('#guess-result').textContent = resultMessage;
             const solvedGroupsDiv = document.querySelector('#solved-groups');
             solvedGroupsDiv.innerHTML = '';
-            data.solved_groups.forEach(const (group) => {
+            data.solved_groups.forEach((group) => {
                 const groupDiv = document.createElement('div');
                 groupDiv.classList.add('solved-group');
                 groupDiv.style.backgroundColor = GROUP_COLOR_CODES[group];
@@ -293,7 +294,7 @@
 
             const itemsDiv = document.querySelector('#items');
             itemsDiv.innerHTML = '';
-            data.unsolved_items.forEach(const (item) => {
+            data.unsolved_items.forEach((item) => {
                 const itemDiv = document.createElement('div');
                 itemDiv.classList.add('item');
                 itemDiv.innerText = item;
@@ -321,7 +322,7 @@
             }
         }
 
-        const loadGame = (puzzleId) => {
+        const currentPuzzle = (puzzleId) => {
             fetch('/get_current_puzzle', {
                 method: 'GET'
             })
@@ -344,7 +345,7 @@
                 });
         }
 
-        document.querySelector('#puzzle-select').addEventListener('change', loadGame(document.querySelector('#puzzle-select').value));
+        document.querySelector('#puzzle-select').addEventListener('change', currentPuzzle(document.querySelector('#puzzle-select').value));
 
         const navigateToPrevPuzzle = () => {
             if (currentPuzzleIndex > 0) {
