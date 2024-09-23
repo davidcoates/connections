@@ -1,0 +1,96 @@
+[
+    {
+        "id": 1,
+        "date": "2024-09-23",
+        "author": "John Doe",
+        "groups": [
+            {
+                "color": "YELLOW",
+                "category": "Call Signs",
+                "items": [
+                    "Alpha",
+                    "Beta",
+                    "Charlie",
+                    "Delta"
+                ]
+            },
+            {
+                "color": "GREEN",
+                "category": "Colors",
+                "items": [
+                    "Red",
+                    "Green",
+                    "Blue",
+                    "Yellow"
+                ]
+            },
+            {
+                "color": "BLUE",
+                "category": "Animals",
+                "items": [
+                    "Dog",
+                    "Cat",
+                    "Bird",
+                    "Fish"
+                ]
+            },
+            {
+                "color": "PURPLE",
+                "category": "Numbers",
+                "items": [
+                    "One",
+                    "Two",
+                    "Three",
+                    "Four"
+                ]
+            }
+        ]
+    },
+    {
+        "id": 2,
+        "date": "2024-09-24",
+        "author": "Jane Doe",
+        "groups": [
+            {
+                "color": "YELLOW",
+                "category": "Spellings of Dave",
+                "items": [
+                    "Dave",
+                    "David",
+                    "Davidson",
+                    "Davis"
+                ]
+            },
+            {
+                "color": "GREEN",
+                "category": "Cheeses",
+                "items": [
+                    "Cheddar",
+                    "Gouda",
+                    "Feta",
+                    "Mozzarella"
+                ]
+            },
+            {
+                "color": "BLUE",
+                "category": "Letters in the Alphabet",
+                "items": [
+                    "A",
+                    "B",
+                    "C",
+                    "D"
+                ]
+            },
+            {
+                "color": "PURPLE",
+                "category": "Numbers",
+                "items": [
+                    "One",
+                    "Two",
+                    "Three",
+                    "Four"
+                ]
+            }
+        ]
+    }
+]

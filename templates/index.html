@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Konnections</title>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -195,233 +194,240 @@
     </div>
 
     <script>
-        $(document).ready(function() {
+        let gameId = localStorage.getItem('gameId');
+        let currentPuzzleIndex = 0;
 
-            let gameId = localStorage.getItem('gameId');
-            let currentPuzzleIndex = 0;
+        const endGame = (message, guessReport = []) => {
+            document.querySelector('#guess-result').innerText = '';
 
-            function endGame(message, guessReport = []) {
+            let endGameDiv = document.createElement('div');
+            endGameDiv.setAttribute('id', 'end-game-message');
+            let messagePara = document.createElement('p');
+            messagePara.innerText = message;
+            endGameDiv.appendChild(messagePara);
 
-                $('#guess-result').text('');
+            if (guessReport.length > 0) {
+                let reportDiv = document.createElement('div');
+                reportDiv.setAttribute('id', 'guess-report');
+                reportDiv.innerHTML = '<h3>Guesses</h3>';
+                let reportContent = guessReport.join('<br>');
+                let reportPara = document.createElement('p');
+                reportPara.innerHTML = reportContent;
+                reportDiv.appendChild(reportPara);
+                endGameDiv.appendChild(reportDiv);
+            }
 
-                let endGameDiv = $('<div id="end-game-message"></div>');
-                endGameDiv.append($('<p></p>').text(message));
+            let shareBtn = document.createElement('button');
+            shareBtn.setAttribute('id', 'share-results');
+            shareBtn.innerText = 'Share Results';
+            endGameDiv.appendChild(shareBtn);
+            document.querySelector('.container').appendChild(endGameDiv); 
 
-                if (guessReport.length > 0) {
-                    let reportDiv = $('<div id="guess-report"></div>');
-                    reportDiv.append('<h3>Guesses</h3>');
-                    let reportContent = guessReport.join('<br>');
-                    reportDiv.append($('<p></p>').html(reportContent));
-                    endGameDiv.append(reportDiv);
-                }
+            shareBtn.addEventListener('click', () => {
+                copyResultsToClipboard(guessReport);
+            });
+        }
 
-                endGameDiv.append($('<button id="share-results">Share Results</button>'));
+        const copyResultsToClipboard = (guessReport) => {
+            let results = generateResults(guessReport);
+            navigator.clipboard.writeText(results).then(() => {
+                alert('Results copied to clipboard!');
+            }, (err) => {
+                console.error('Could not copy text: ', err);
+            });
+        }
 
-                $('.container').append(endGameDiv); // Append to the container instead of body
+        const generateResults = (guessReport) => {
+            let puzzleId = document.querySelector('#puzzle-select').value;
+            return `[Konnections](https://konnections.wlling.net)\nPuzzle #${puzzleId}\n${guessReport.join('\n')}`;
+        }
 
-                $('#share-results').click(function() {
-                    copyResultsToClipboard(guessReport);
+        const loadGame = (puzzleId) => {
+            const puzzleSelect = document.querySelector('#puzzle-select');
+            puzzleSelect.value = puzzleId;
+            fetch(`/game/${puzzleId}`, { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    gameId = data.game_id;
+                    localStorage.setItem('gameId', gameId);
+                    updatePuzzleNavigation();
+                    updateGame(data, '');
+
+                    fetch('/save_current_puzzle', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ puzzle_id: puzzleId })
+                    }).catch(err => console.error('Failed to save current puzzle:', err));
+                })
+                .catch(err => {
+                    alert(err.message);
                 });
-            }
+        }
 
-            function copyResultsToClipboard(guessReport) {
-                let results = generateResults(guessReport);
-                navigator.clipboard.writeText(results).then(function() {
-                    alert('Results copied to clipboard!');
-                }, function(err) {
-                    console.error('Could not copy text: ', err);
+        const GROUP_COLOR_CODES = {
+            'BLUE': '#4169E1', // Royal Blue
+            'GREEN': '#2E8B57', // Sea Green
+            'YELLOW': '#FFD700', // Gold
+            'PURPLE': '#8A2BE2', // Blue Violet
+        }
+        
+        const updateGame = (data, resultMessage) => {
+            document.querySelector('#guess-result').textContent = resultMessage;
+            const solvedGroupsDiv = document.querySelector('#solved-groups');
+            solvedGroupsDiv.innerHTML = '';
+            data.solved_groups.forEach((group) => {
+                const groupDiv = document.createElement('div');
+                groupDiv.classList.add('solved-group');
+                groupDiv.style.backgroundColor = GROUP_COLOR_CODES[group['color']];
+                const groupHeading = document.createElement('h3');
+                groupHeading.innerText = group.category;
+                groupDiv.appendChild(groupHeading);
+                group.items.forEach(item => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.innerText = item;
+                    groupDiv.appendChild(itemDiv);
                 });
-            }
+                solvedGroupsDiv.appendChild(groupDiv);
+            });
 
-            function generateResults(guessReport) {
-                let puzzleId = $('#puzzle-select option:selected').val();
-                return `[Konnections](https://konnections.wlling.net)\nPuzzle #${puzzleId}\n${guessReport.join('\n')}`;
-            }
-
-
-            function loadGame(puzzleId) {
-                $.ajax({
-                    url: `/game/${puzzleId}`,
-                    method: 'POST',
-                    contentType: 'application/json',
-                    success: function(data) {
-                        gameId = data.game_id;
-                        localStorage.setItem('gameId', gameId);
-                        updatePuzzleNavigation();
-                        updateGame(data, '');
-                        
-                        // Save the current puzzle ID to the server
-                        $.ajax({
-                            url: '/save_current_puzzle',
-                            method: 'POST',
-                            contentType: 'application/json',
-                            data: JSON.stringify({ puzzle_id: puzzleId }),
-                            error: function(err) {
-                                console.error('Failed to save current puzzle:', err);
-                            }
-                        });
-                    },
-                    error: function(err) {
-                        alert(err.responseJSON.error);
-                    }
-                });
-            }
-
-            function groupToColorCode(group) {
-                switch(group.color.toLowerCase()) {
-                    case 'blue':
-                        return '#4169E1'; // Royal Blue
-                    case 'green':
-                        return '#2E8B57'; // Sea Green
-                    case 'yellow':
-                        return '#FFD700'; // Gold
-                    case 'purple':
-                        return '#8A2BE2'; // Blue Violet
-                }
-            }
-
-            function updateGame(data, resultMessage) {
-                // display / clear result message
-                $('#guess-result').text(resultMessage);
-                // update solved groups
-                $('#solved-groups').empty();
-                data.solved_groups.forEach(function(group) {
-                    const $group = $('<div class="solved-group"></div>').css('background-color', groupToColorCode(group));
-                    $group.append(`<h3>${group.category}</h3>`);
-                    group.items.forEach(item => {
-                        $group.append(`<div>${item}</div>`);
+            const itemsDiv = document.querySelector('#items');
+            itemsDiv.innerHTML = '';
+            data.unsolved_items.forEach((item) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.classList.add('item');
+                itemDiv.innerText = item;
+                if (!data.solved && data.attempts_remaining > 0) {
+                    itemDiv.addEventListener('click', () => {
+                        itemDiv.classList.toggle('selected');
                     });
-                    $('#solved-groups').append($group);
-                });
-                // update solved items
-                $('#items').empty();
-                data.unsolved_items.forEach(function(item) {
-                    const $item = $('<div class="item"></div>').text(item);
-                    if (!data.solved && data.attempts_remaining > 0) {
-                        $item.click(function() {
-                            $(this).toggleClass('selected');
-                        });
-                    }
-                    $('#items').append($item);
-                });
-                // update attemps
-                $('#attempts').text(`Attempts remaining: ${data.attempts_remaining}`);
-                // display end-game info
-                $('#end-game-message').remove();
-                if (data.solved) {
-                    $('#game-controls').hide();
-                    endGame("Congratulations! You've solved this puzzle!", data.guess_report);
-                } else if (data.attempts_remaining <= 0) {
-                    $('#game-controls').hide();
-                    endGame("Game Over! You've run out of attempts.", data.guess_report);
-                } else {
-                    $('#game-controls').show();
                 }
-            }
+                itemsDiv.appendChild(itemDiv);
+            });
 
-            // Load the user's last puzzle on page load
-            $.ajax({
-                url: '/get_current_puzzle',
-                method: 'GET',
-                success: function(data) {
+            document.querySelector('#attempts').textContent = `Attempts remaining: ${data.attempts_remaining}`;
+            const endGameMessage = document.querySelector('#end-game-message');
+            if (endGameMessage) {
+                endGameMessage.remove();
+            }
+            if (data.solved) {
+                document.querySelector('#game-controls').style.display = 'none';
+                endGame("Congratulations! You've solved this puzzle!", data.guess_report);
+            } else if (data.attempts_remaining <= 0) {
+                document.querySelector('#game-controls').style.display = 'none';
+                endGame("Game Over! You've run out of attempts.", data.guess_report);
+            } else {
+                document.querySelector('#game-controls').style.display = 'block';
+            }
+        }
+
+        const currentPuzzle = (puzzleId) => {
+            fetch('/get_current_puzzle', {
+                method: 'GET'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    const puzzleSelect = document.querySelector('#puzzle-select');
                     if (data.puzzle_id) {
-                        $('#puzzle-select').val(data.puzzle_id);
+                        puzzleSelect.value = data.puzzle_id;
                         loadGame(data.puzzle_id);
                     } else {
-                        // If no saved puzzle, load the latest one
-                        $("#puzzle-select").prop("selectedIndex", $('#puzzle-select option').length - 1);
-                        loadGame($('#puzzle-select').val());
+                        puzzleSelect.selectedIndex = puzzleSelect.options.length - 1;
+                        loadGame(puzzleSelect.value);
                     }
-                },
-                error: function(err) {
+                })
+                .catch(err => {
                     console.error('Failed to get current puzzle:', err);
-                    // Load the latest puzzle as fallback
-                    $("#puzzle-select").prop("selectedIndex", $('#puzzle-select option').length - 1);
-                    loadGame($('#puzzle-select').val());
-                }
-            });
-
-            // Change puzzle when drop down selection is changed
-            $('#puzzle-select').change(function() {
-                const puzzleId = $(this).val();
-                loadGame(puzzleId);
-            });
-
-            // Navigate to previous puzzle
-            $('#prev-puzzle').click(function() {
-                if (currentPuzzleIndex > 0) {
-                    currentPuzzleIndex--;
-                    $('#puzzle-select option').eq(currentPuzzleIndex).prop('selected', true);
-                    loadGame($('#puzzle-select').val());
-                }
-            });
-
-            // Navigate to next puzzle
-            $('#next-puzzle').click(function() {
-                if (currentPuzzleIndex < $('#puzzle-select option').length - 1) {
-                    currentPuzzleIndex++;
-                    $('#puzzle-select option').eq(currentPuzzleIndex).prop('selected', true);
-                    loadGame($('#puzzle-select').val());
-                }
-            });
-
-            $('#submit-guess').click(function() {
-                if (!gameId) {
-                    $('#guess-result').text("Please start a new game first.");
-                    return;
-                }
-                const selectedItems = $('.item.selected').map(function() {
-                    return $(this).text();
-                }).get();
-                if (selectedItems.length !== 4) {
-                    $('#guess-result').text("Please select exactly 4 items.");
-                    return;
-                }
-                $.ajax({
-                    url: `/guess/${gameId}`,
-                    method: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({ items: selectedItems }),
-                    success: function(data) {
-                        let resultMessage;
-                        switch(data.result) {
-                            case 'CORRECT':
-                                resultMessage = "Correct! You've found a group.";
-                                break;
-                            case 'INCORRECT':
-                                resultMessage = "Incorrect. Try again.";
-                                break;
-                            case 'INCORRECT_ONE_AWAY':
-                                resultMessage = "Close! You're one away from a correct group.";
-                                break;
-                            case 'ALREADY_GUESSED':
-                                resultMessage = "You've already guessed this combination.";
-                                break;
-                            default:
-                                resultMessage = "Unknown result.";
-                        }
-                        updateGame(data, resultMessage)
-                    },
-                    error: function(err) {
-                        $('#guess-result').text(err.responseJSON.error);
-                    }
+                    const puzzleSelect = document.querySelector('#puzzle-select');
+                    puzzleSelect.selectedIndex = puzzleSelect.options.length - 1;
+                    loadGame(puzzleSelect.value);
                 });
-            });
+        }
+        
+        currentPuzzle();
 
-            function updatePuzzleNavigation() {
-                let puzzle = $('#puzzle-select option:selected');
-                let puzzleId = puzzle.val();
-                let puzzleDate = puzzle.data("date");
-                let puzzleAuthor = puzzle.data("author");
-                $('#puzzle-info').empty();
-                $('#puzzle-info').append($('<h2></h2>').text(puzzleDate));
-                $('#puzzle-info').append($('<h3></h3>').text(`No. ${puzzleId}`));
-                $('#puzzle-info').append($('<h3></h3>').text(`By ${puzzleAuthor}`));
-                currentPuzzleIndex = $('#puzzle-select option:selected').index();
-                $('#prev-puzzle').css('visibility', currentPuzzleIndex > 0 ? 'visible' : 'hidden');
-                $('#next-puzzle').css('visibility', currentPuzzleIndex < $('#puzzle-select option').length - 1 ? 'visible' : 'hidden');
-            }
+        document.querySelector('#puzzle-select').addEventListener('change', () => {
+            return loadGame(parseInt(document.querySelector('#puzzle-select').value))
         });
+
+        const navigateToPrevPuzzle = () => {
+            if (currentPuzzleIndex > 0) {
+                currentPuzzleIndex--;
+                const puzzleSelect = document.querySelector('#puzzle-select');
+                puzzleSelect.selectedIndex = currentPuzzleIndex;
+                loadGame(puzzleSelect.value);
+            }
+        };
+
+        const navigateToNextPuzzle = () => {
+            const puzzleSelect = document.querySelector('#puzzle-select');
+            if (currentPuzzleIndex < puzzleSelect.options.length - 1) {
+                currentPuzzleIndex++;
+                puzzleSelect.selectedIndex = currentPuzzleIndex;
+                loadGame(puzzleSelect.value);
+            }
+        };
+
+        document.querySelector('#prev-puzzle').addEventListener('click', navigateToPrevPuzzle);
+        document.querySelector('#next-puzzle').addEventListener('click', navigateToNextPuzzle);
+
+        const submitGuess = () => {
+            if (!gameId) {
+                document.querySelector('#guess-result').innerText = "Please start a new game first.";
+                return;
+            }
+            const selectedItems = [...document.querySelectorAll('.item.selected')].map(item => item.textContent);
+            if (selectedItems.length !== 4) {
+                document.querySelector('#guess-result').innerText = "Please select exactly 4 items.";
+                return;
+            }
+            fetch(`/guess/${gameId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items: selectedItems })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    let resultMessage;
+                    switch (data.result) {
+                        case 'CORRECT':
+                            resultMessage = "Correct! You've found a group.";
+                            break;
+                        case 'INCORRECT':
+                            resultMessage = "Incorrect. Try again.";
+                            break;
+                        case 'INCORRECT_ONE_AWAY':
+                            resultMessage = "Close! You're one away from a correct group.";
+                            break;
+                        case 'ALREADY_GUESSED':
+                            resultMessage = "You've already guessed this combination.";
+                            break;
+                        default:
+                            resultMessage = "Unknown result.";
+                    }
+                    updateGame(data, resultMessage);
+                })
+                .catch(err => {
+                    document.querySelector('#guess-result').innerText = err.message;
+                });
+        }
+
+        document.querySelector('#submit-guess').addEventListener('click', submitGuess);
+
+        const updatePuzzleNavigation = () => {
+            const puzzleSelect = document.querySelector('#puzzle-select');
+            const selectedOption = puzzleSelect.options[puzzleSelect.selectedIndex];
+            const puzzleId = selectedOption.value;
+            const puzzleDate = selectedOption.getAttribute('data-date');
+            const puzzleAuthor = selectedOption.getAttribute('data-author');
+            const puzzleInfo = document.querySelector('#puzzle-info');
+            puzzleInfo.innerHTML = '';
+            puzzleInfo.innerHTML = `<h2>${puzzleDate}</h2><h3>No. ${puzzleId}</h3><h3>By ${puzzleAuthor}</h3>`;
+            currentPuzzleIndex = puzzleSelect.selectedIndex;
+            const hasNextPuzzle = currentPuzzleIndex < puzzleSelect.options.length - 1;
+            const hasPrevPuzzle = currentPuzzleIndex > 0;
+            document.querySelector('#prev-puzzle').style.visibility = hasPrevPuzzle ? 'visible' : 'hidden';
+            document.querySelector('#next-puzzle').style.visibility = hasNextPuzzle ? 'visible' : 'hidden';
+        }
     </script>
 </body>
 </html>
