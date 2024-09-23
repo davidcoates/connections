@@ -262,19 +262,13 @@
                 });
         }
 
-        function groupToColorCode(group) {
-            switch (group.color.toLowerCase()) {
-                case 'blue':
-                    return '#4169E1'; // Royal Blue
-                case 'green':
-                    return '#2E8B57'; // Sea Green
-                case 'yellow':
-                    return '#FFD700'; // Gold
-                case 'purple':
-                    return '#8A2BE2'; // Blue Violet
-            }
+        const GROUP_COLOR_CODES = {
+            'blue': '#4169E1', // Royal Blue
+            'green': '#2E8B57', // Sea Green
+            'yellow': '#FFD700', // Gold
+            'purple': '#8A2BE2', // Blue Violet
         }
-
+        
         function updateGame(data, resultMessage) {
             document.querySelector('#guess-result').textContent = resultMessage;
             const solvedGroupsDiv = document.querySelector('#solved-groups');
@@ -282,7 +276,7 @@
             data.solved_groups.forEach(function (group) {
                 const groupDiv = document.createElement('div');
                 groupDiv.classList.add('solved-group');
-                groupDiv.style.backgroundColor = groupToColorCode(group);
+                groupDiv.style.backgroundColor = GROUP_COLOR_CODES[group];
                 const groupHeading = document.createElement('h3');
                 groupHeading.innerText = group.category;
                 groupDiv.appendChild(groupHeading);
