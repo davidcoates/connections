@@ -342,6 +342,8 @@
                     loadGame(puzzleSelect.value);
                 });
         }
+        
+        currentPuzzle();
 
         document.querySelector('#puzzle-select').addEventListener('change', () => {
             return loadGame(parseInt(document.querySelector('#puzzle-select').value))
