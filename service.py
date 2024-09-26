@@ -271,6 +271,7 @@ class Service:
             with open(self.PUZZLES_FILENAME, 'r') as f:
                 puzzle_data = json.load(f)
             puzzles = [ Puzzle.from_JSON(str(id + 1), data) for id, data in enumerate(puzzle_data) ]
-            return { puzzle.id : puzzle for puzzle in puzzles }
+            today = datetime.date.today()
+            return { puzzle.id : puzzle for puzzle in puzzles if puzzle.date <= today }
         except FileNotFoundError:
             return {}
