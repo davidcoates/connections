@@ -112,18 +112,6 @@ def guess(game_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
-@app.route('/save_current_puzzle', methods=['POST'])
-def save_current_puzzle():
-    puzzle_id = request.json.get('puzzle_id')
-    current_user.data['current_puzzle'] = puzzle_id
-    current_user.save()
-    return jsonify({"success": True}), 200
-
-@app.route('/get_current_puzzle', methods=['GET'])
-def get_current_puzzle():
-    puzzle_id = current_user.data.get('current_puzzle')
-    return jsonify({"puzzle_id": puzzle_id}), 200
-
 PORT = int(os.getenv('PORT', '5000'))
 
 if __name__ == '__main__':

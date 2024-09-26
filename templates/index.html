@@ -252,12 +252,6 @@
                     localStorage.setItem('gameId', gameId);
                     updatePuzzleNavigation();
                     updateGame(data, '');
-
-                    fetch('/save_current_puzzle', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ puzzle_id: puzzleId })
-                    }).catch(err => console.error('Failed to save current puzzle:', err));
                 })
                 .catch(err => {
                     alert(err.message);
@@ -270,7 +264,7 @@
             'YELLOW': '#FFD700', // Gold
             'PURPLE': '#8A2BE2', // Blue Violet
         }
-        
+
         const updateGame = (data, resultMessage) => {
             document.querySelector('#guess-result').textContent = resultMessage;
             const solvedGroupsDiv = document.querySelector('#solved-groups');
@@ -320,30 +314,13 @@
             }
         }
 
-        const currentPuzzle = (puzzleId) => {
-            fetch('/get_current_puzzle', {
-                method: 'GET'
-            })
-                .then(response => response.json())
-                .then(data => {
-                    const puzzleSelect = document.querySelector('#puzzle-select');
-                    if (data.puzzle_id) {
-                        puzzleSelect.value = data.puzzle_id;
-                        loadGame(data.puzzle_id);
-                    } else {
-                        puzzleSelect.selectedIndex = puzzleSelect.options.length - 1;
-                        loadGame(puzzleSelect.value);
-                    }
-                })
-                .catch(err => {
-                    console.error('Failed to get current puzzle:', err);
-                    const puzzleSelect = document.querySelector('#puzzle-select');
-                    puzzleSelect.selectedIndex = puzzleSelect.options.length - 1;
-                    loadGame(puzzleSelect.value);
-                });
+        const loadLatestPuzzle = () => {
+            const puzzleSelect = document.querySelector('#puzzle-select');
+            puzzleSelect.selectedIndex = puzzleSelect.options.length - 1;
+            loadGame(puzzleSelect.value);
         }
-        
-        currentPuzzle();
+
+        loadLatestPuzzle();
 
         document.querySelector('#puzzle-select').addEventListener('change', () => {
             return loadGame(parseInt(document.querySelector('#puzzle-select').value))
