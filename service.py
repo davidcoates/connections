@@ -218,11 +218,11 @@ class Game:
             self._incorrect_guesses.add(guess)
             return Guess.INCORRECT
 
-    def to_json(self):
+    def to_JSON(self):
         return json.dumps(self, cls=GameEncoder)
 
     @classmethod
-    def from_json(cls, json_str, service):
+    def from_JSON(cls, json_str, service):
         return json.loads(json_str, cls=GameDecoder, service=service)
 
 
@@ -254,7 +254,7 @@ class Service:
         self._save_games()
 
     def _save_games(self):
-        games_data = {game_id: game.to_json() for game_id, game in self._games_by_id.items()}
+        games_data = {game_id: game.to_JSON() for game_id, game in self._games_by_id.items()}
         with open(self.GAMES_FILENAME, 'w') as f:
             json.dump(games_data, f)
 
@@ -262,7 +262,7 @@ class Service:
         try:
             with open(self.GAMES_FILENAME, 'r') as f:
                 games_data = json.load(f)
-            return {game_id: Game.from_json(game_json, self) for game_id, game_json in games_data.items()}
+            return {game_id: Game.from_JSON(game_json, self) for game_id, game_json in games_data.items()}
         except FileNotFoundError:
             return {}
 
